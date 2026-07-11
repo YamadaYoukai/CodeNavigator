@@ -1,11 +1,15 @@
 import asyncio
 import os
 from typing import Any
+
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent
-from src.zoekt.client import ZoektClient, ZoektError
-from src.models import CodeSearchResponse
+from pydantic import ValidationError
+
+from src.config import get_repository_root
+from src.models import CodeSearchRequest, CodeSearchResponse, FileContextRequest
+from src.services import ZoektClient, ZoektError, read_file_context
 
 app = Server("code-search-mcp")
 
@@ -24,44 +28,16 @@ async def list_tools() -> list[Tool]:
                 "适用场景：跨仓库查找 API 调用、定位实现、代码复用查找。"
                 "提示：搜服务名 / 包名等含连字符 - 或冒号 : 的字面值时,设 literal=true 以防被当成查询语法。"
             ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "搜索关键词或正则表达式",
-                    },
-                    "repo": {
-                        "type": "string",
-                        "description": "仓库名过滤（正则），可选",
-                    },
-                    "lang": {
-                        "type": "string",
-                        "description": "编程语言过滤（如 java/go/python），可选",
-                    },
-                    "path": {
-                        "type": "string",
-                        "description": "文件路径过滤（正则），可选",
-                    },
-                    "limit": {
-                        "type": "integer",
-                        "description": "返回结果数量上限",
-                        "default": 20,
-                    },
-                    "literal": {
-                        "type": "boolean",
-                        "description": (
-                            "字面量搜索:true 时把 query 当成纯字符串,自动转义 zoekt 运算符 "
-                            "(连字符 - / ! / 引号 / 空格 等)。搜服务名 'fintech-mx-wallet-proxy'、"
-                            "包名 com.didi.foo 等含特殊字符的字面值时建议设 true。"
-                            "regex 搜索请保持 false。默认 false。"
-                        ),
-                        "default": False,
-                    },
-                },
-                "required": ["query"],
-            },
-        )
+            inputSchema=CodeSearchRequest.model_json_schema(),
+        ),
+        Tool(
+            name="get_file_context",
+            description=(
+                "读取代码搜索结果所在行附近的源码。应在 search_code 返回仓库、"
+                "相对文件路径和行号后调用。"
+            ),
+            inputSchema=FileContextRequest.model_json_schema(),
+        ),
     ]
 
 
@@ -70,19 +46,25 @@ async def call_tool(
         name: str,
         arguments: dict[str, Any],
 ) -> list[TextContent]:
-    if name != "search_code":
-        raise ValueError(f"Unknown tool: {name}")
+    if name == "search_code":
+        return await _call_search_code(arguments)
+    if name == "get_file_context":
+        return _call_get_file_context(arguments)
+    raise ValueError(f"Unknown tool: {name}")
 
+
+async def _call_search_code(arguments: dict[str, Any]) -> list[TextContent]:
     try:
+        request = CodeSearchRequest.model_validate(arguments)
         result = await zoekt_client.search(
-            query=arguments["query"],
-            repo=arguments.get("repo"),
-            lang=arguments.get("lang"),
-            path=arguments.get("path"),
-            limit=arguments.get("limit", 20),
-            literal=arguments.get("literal", False),
+            query=request.query,
+            repo=request.repo,
+            lang=request.lang,
+            path=request.path,
+            limit=request.limit,
+            literal=request.literal,
         )
-    except (ValueError, ZoektError) as exc:
+    except (ValidationError, ValueError, ZoektError) as exc:
         return [TextContent(type="text", text=f"搜索失败：{exc}")]
 
     return [
@@ -91,6 +73,25 @@ async def call_tool(
             text=format_search_response(result),
         )
     ]
+
+
+def _call_get_file_context(
+    arguments: dict[str, Any],
+) -> list[TextContent]:
+    try:
+        request = FileContextRequest.model_validate(arguments)
+        result = read_file_context(
+            repository=request.repository,
+            repository_root=get_repository_root(request.repository),
+            file_path=request.file_path,
+            line_number=request.line_number,
+            lines_before=request.lines_before,
+            lines_after=request.lines_after,
+        )
+    except (ValidationError, ValueError, FileNotFoundError) as exc:
+        return [TextContent(type="text", text=f"读取文件上下文失败：{exc}")]
+
+    return [TextContent(type="text", text=result.model_dump_json(indent=2))]
 
 
 def format_search_response(result: CodeSearchResponse) -> str:
@@ -111,7 +112,7 @@ def format_search_response(result: CodeSearchResponse) -> str:
     return "\n".join(output)
 
 
-async def main():
+async def main() -> None:
     async with stdio_server() as (read, write):
         await app.run(read, write, app.create_initialization_options())
 

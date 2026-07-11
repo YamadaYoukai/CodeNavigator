@@ -1,7 +1,7 @@
 import base64
 import unittest
 
-from src.zoekt.client import ZoektClient
+from src.services.zoekt_client import ZoektClient
 
 
 class ParseZoektResponseTest(unittest.TestCase):

@@ -37,12 +37,13 @@ Zoekt Web Server
 职责划分：
 
 - `src/server.py`：声明 MCP 工具，接收工具参数并格式化返回内容。
-- `src/zoekt/client.py`：构造 Zoekt 查询、调用 Zoekt API 并解析响应。
-- `src/models.py`：定义与 MCP 和 Zoekt 实现解耦的结构化结果模型。
+- `src/services/zoekt_client.py`：构造 Zoekt 查询、调用 Zoekt API 并解析响应。
+- `src/services/file_reader.py`：安全解析仓库内路径并读取目标行上下文。
+- `src/models/`：定义与 MCP 和 Zoekt 实现解耦的结构化结果模型。
 
 ## 当前能力
 
-项目目前提供 `search_code` 工具，支持：
+项目目前提供 `search_code` 和 `get_file_context` 两个工具，支持：
 
 - 跨已索引仓库搜索代码；
 - 按仓库、语言和文件路径过滤；
@@ -50,6 +51,8 @@ Zoekt Web Server
 - 对包含连字符、空格等特殊字符的内容进行字面量搜索；
 - 返回仓库名、文件路径、行号和匹配代码片段；
 - 限制返回结果数量，避免向模型传入过多上下文。
+- 根据搜索命中的仓库、相对路径和行号读取源码上下文；
+- 拒绝绝对路径和目录穿越，限制文件访问范围。
 
 示例问题：
 
@@ -83,6 +86,7 @@ pip install -r requirements.txt
 
 ```bash
 export ZOEKT_URL=http://localhost:6070
+export REPOSITORY_ROOT=/path/to/indexed/repositories
 ```
 
 ### 启动 MCP Server
@@ -120,7 +124,7 @@ MCP 将搜索能力与具体 AI 客户端解耦。同一个服务可以被不同
 - [x] 支持仓库、语言、路径和字面量过滤
 - [x] 补充 Zoekt 查询构造和响应解析单元测试
 - [ ] 补充 MCP Server 和 Zoekt 集成测试
-- [ ] 增加 `get_file_context`
+- [x] 增加 `get_file_context`
 - [ ] 增加 `find_symbol` 和 `find_references`
 - [ ] 控制上下文长度并改善结果排序
 - [ ] 接入代码理解 Agent

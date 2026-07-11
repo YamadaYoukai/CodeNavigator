@@ -1,6 +1,6 @@
 import unittest
 
-from src.zoekt.client import build_zoekt_query
+from src.services.zoekt_client import build_zoekt_query
 
 
 class BuildZoektQueryTest(unittest.TestCase):
