@@ -6,7 +6,9 @@
     python test_search.py
 """
 import asyncio
-from src.server import call_tool
+from mcp.server.fastmcp.exceptions import ToolError
+
+from src.server import search_code
 
 
 async def main():
@@ -20,10 +22,10 @@ async def main():
     for c in cases:
         print(f"\n>>> {c}")
         try:
-            result = await call_tool("search_code", c)
-            print(result[0].text[:500])
-        except Exception as e:
-            print(f"!! error: {e}")
+            result = await search_code(**c)
+            print(result.model_dump_json(indent=2)[:500])
+        except ToolError as exc:
+            print(f"!! error: {exc}")
 
 
 if __name__ == "__main__":

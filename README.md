@@ -97,6 +97,15 @@ PYTHONPATH=. .venv/bin/python -m src.server
 
 该服务使用 stdio 与 MCP 客户端通信，因此直接启动后没有普通 HTTP 页面属于正常现象。
 
+### 使用 MCP Inspector 调试
+
+```bash
+PYTHONPATH=. .venv/bin/mcp dev src/server.py:mcp
+```
+
+该命令会通过 MCP Inspector 加载 FastMCP 服务，可以查看工具 schema 并手动调用
+`search_code` 和 `get_file_context`。
+
 ## 手动验证搜索
 
 确保 Zoekt 已启动并已加载索引，然后执行：

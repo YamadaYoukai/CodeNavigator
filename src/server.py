@@ -1,121 +1,115 @@
-import asyncio
 import os
-from typing import Any
+from typing import Annotated
 
-from mcp.server import Server
-from mcp.server.stdio import stdio_server
-from mcp.types import Tool, TextContent
-from pydantic import ValidationError
+from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.exceptions import ToolError
+from pydantic import Field
 
 from src.config import get_repository_root
-from src.models import CodeSearchRequest, CodeSearchResponse, FileContextRequest
+from src.models import CodeSearchResponse, FileContext
 from src.services import ZoektClient, ZoektError, read_file_context
 
-app = Server("code-search-mcp")
+mcp = FastMCP(
+    name="code-search-mcp",
+    instructions=(
+        "Search indexed source repositories with Zoekt, then read source "
+        "context around relevant matches."
+    ),
+)
 
-zoekt_client = ZoektClient(base_url=os.getenv("ZOEKT_URL", "http://localhost:6070"))
-
-
-@app.list_tools()
-async def list_tools() -> list[Tool]:
-    return [
-        Tool(
-            name="search_code",
-            description=(
-                "在团队所有已索引的代码仓库中跨仓库搜索代码。"
-                "支持普通文本、正则表达式、按仓库/语言/路径过滤。"
-                "返回匹配的代码片段、文件路径、行号、所在仓库。"
-                "适用场景：跨仓库查找 API 调用、定位实现、代码复用查找。"
-                "提示：搜服务名 / 包名等含连字符 - 或冒号 : 的字面值时,设 literal=true 以防被当成查询语法。"
-            ),
-            inputSchema=CodeSearchRequest.model_json_schema(),
-        ),
-        Tool(
-            name="get_file_context",
-            description=(
-                "读取代码搜索结果所在行附近的源码。应在 search_code 返回仓库、"
-                "相对文件路径和行号后调用。"
-            ),
-            inputSchema=FileContextRequest.model_json_schema(),
-        ),
-    ]
+zoekt_client = ZoektClient(
+    base_url=os.getenv("ZOEKT_URL", "http://localhost:6070")
+)
 
 
-@app.call_tool()
-async def call_tool(
-        name: str,
-        arguments: dict[str, Any],
-) -> list[TextContent]:
-    if name == "search_code":
-        return await _call_search_code(arguments)
-    if name == "get_file_context":
-        return _call_get_file_context(arguments)
-    raise ValueError(f"Unknown tool: {name}")
+@mcp.tool()
+async def search_code(
+    query: Annotated[
+        str,
+        Field(min_length=1, description="搜索关键词或正则表达式"),
+    ],
+    repo: Annotated[
+        str | None,
+        Field(description="仓库名过滤（正则），可选"),
+    ] = None,
+    lang: Annotated[
+        str | None,
+        Field(description="编程语言过滤（如 java/go/python），可选"),
+    ] = None,
+    path: Annotated[
+        str | None,
+        Field(description="文件路径过滤（正则），可选"),
+    ] = None,
+    limit: Annotated[
+        int,
+        Field(ge=1, le=100, description="返回结果数量上限"),
+    ] = 20,
+    literal: Annotated[
+        bool,
+        Field(description="是否将 query 作为纯字符串进行字面量搜索"),
+    ] = False,
+) -> CodeSearchResponse:
+    """在团队所有已索引的代码仓库中跨仓库搜索代码。
 
-
-async def _call_search_code(arguments: dict[str, Any]) -> list[TextContent]:
+    支持普通文本、正则表达式以及仓库、语言和路径过滤。搜索包含连字符、
+    空格或其他 Zoekt 运算符的服务名、包名时，使用 literal=true。
+    """
     try:
-        request = CodeSearchRequest.model_validate(arguments)
-        result = await zoekt_client.search(
-            query=request.query,
-            repo=request.repo,
-            lang=request.lang,
-            path=request.path,
-            limit=request.limit,
-            literal=request.literal,
+        return await zoekt_client.search(
+            query=query,
+            repo=repo,
+            lang=lang,
+            path=path,
+            limit=limit,
+            literal=literal,
         )
-    except (ValidationError, ValueError, ZoektError) as exc:
-        return [TextContent(type="text", text=f"搜索失败：{exc}")]
-
-    return [
-        TextContent(
-            type="text",
-            text=format_search_response(result),
-        )
-    ]
+    except (ValueError, ZoektError) as exc:
+        raise ToolError(f"搜索失败：{exc}") from exc
 
 
-def _call_get_file_context(
-    arguments: dict[str, Any],
-) -> list[TextContent]:
+@mcp.tool()
+def get_file_context(
+    repository: Annotated[
+        str,
+        Field(min_length=1, description="代码仓库名称"),
+    ],
+    file_path: Annotated[
+        str,
+        Field(min_length=1, description="仓库根目录下的相对文件路径"),
+    ],
+    line_number: Annotated[
+        int,
+        Field(ge=1, description="从 1 开始的目标行号"),
+    ],
+    lines_before: Annotated[
+        int,
+        Field(ge=0, le=100, description="目标行之前返回的行数"),
+    ] = 20,
+    lines_after: Annotated[
+        int,
+        Field(ge=0, le=100, description="目标行之后返回的行数"),
+    ] = 20,
+) -> FileContext:
+    """读取代码搜索结果所在行附近的源码。
+
+    应在 search_code 返回仓库、相对文件路径和行号后调用。
+    """
     try:
-        request = FileContextRequest.model_validate(arguments)
-        result = read_file_context(
-            repository=request.repository,
-            repository_root=get_repository_root(request.repository),
-            file_path=request.file_path,
-            line_number=request.line_number,
-            lines_before=request.lines_before,
-            lines_after=request.lines_after,
+        return read_file_context(
+            repository=repository,
+            repository_root=get_repository_root(repository),
+            file_path=file_path,
+            line_number=line_number,
+            lines_before=lines_before,
+            lines_after=lines_after,
         )
-    except (ValidationError, ValueError, FileNotFoundError) as exc:
-        return [TextContent(type="text", text=f"读取文件上下文失败：{exc}")]
-
-    return [TextContent(type="text", text=result.model_dump_json(indent=2))]
+    except (ValueError, FileNotFoundError) as exc:
+        raise ToolError(f"读取文件上下文失败：{exc}") from exc
 
 
-def format_search_response(result: CodeSearchResponse) -> str:
-    if not result.matches:
-        return f"未找到匹配 '{result.query}' 的代码"
-
-    output = [
-        f"找到 {len(result.matches)} 处匹配"
-        f"（耗时 {result.duration_ms}ms）：",
-        "",
-    ]
-
-    for match in result.matches:
-        output.append(f"📁 {match.repo}/{match.path}:{match.line}")
-        output.append(f"   {match.snippet}")
-        output.append("")
-
-    return "\n".join(output)
-
-
-async def main() -> None:
-    async with stdio_server() as (read, write):
-        await app.run(read, write, app.create_initialization_options())
+def main() -> None:
+    mcp.run(transport="stdio")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
