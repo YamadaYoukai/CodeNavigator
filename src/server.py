@@ -12,8 +12,11 @@ from src.services import ZoektClient, ZoektError, read_file_context
 mcp = FastMCP(
     name="code-search-mcp",
     instructions=(
-        "Search indexed source repositories with Zoekt, then read source "
-        "context around relevant matches."
+        "Use search_code to locate exact symbols, error messages, configuration "
+        "keys, and other source text in Zoekt-indexed repositories. When a hit "
+        "looks relevant, pass its repo, path, and one-based line number to "
+        "get_file_context before explaining the code. Prefer narrow repository, "
+        "language, or path filters when the user provides them."
     ),
 )
 
@@ -26,33 +29,50 @@ zoekt_client = ZoektClient(
 async def search_code(
     query: Annotated[
         str,
-        Field(min_length=1, description="搜索关键词或正则表达式"),
+        Field(
+            min_length=1,
+            description=(
+                "要查找的源码文本或 Zoekt 正则表达式，例如类名、函数名、"
+                "错误信息、配置键或调用表达式"
+            ),
+        ),
     ],
     repo: Annotated[
         str | None,
-        Field(description="仓库名过滤（正则），可选"),
+        Field(description="可选的仓库名正则过滤；已知目标仓库时应尽量设置"),
     ] = None,
     lang: Annotated[
         str | None,
-        Field(description="编程语言过滤（如 java/go/python），可选"),
+        Field(description="可选的语言过滤，例如 java、go 或 python"),
     ] = None,
     path: Annotated[
         str | None,
-        Field(description="文件路径过滤（正则），可选"),
+        Field(description="可选的仓库内文件路径正则过滤，例如 src/.*\\.py"),
     ] = None,
     limit: Annotated[
         int,
-        Field(ge=1, le=100, description="返回结果数量上限"),
+        Field(ge=1, le=100, description="最多返回的代码命中数，默认 20，最大 100"),
     ] = 20,
     literal: Annotated[
         bool,
-        Field(description="是否将 query 作为纯字符串进行字面量搜索"),
+        Field(
+            description=(
+                "true 表示将 query 作为完整字面量，而非 Zoekt 查询语法；"
+                "搜索带空格、连字符或运算符的错误信息、服务名、包名时使用"
+            )
+        ),
     ] = False,
 ) -> CodeSearchResponse:
-    """在团队所有已索引的代码仓库中跨仓库搜索代码。
+    """在 Zoekt 已索引的仓库中定位源码文本及其文件位置。
 
-    支持普通文本、正则表达式以及仓库、语言和路径过滤。搜索包含连字符、
-    空格或其他 Zoekt 运算符的服务名、包名时，使用 literal=true。
+    当用户询问符号定义或引用、错误信息来源、配置项用法、接口实现或精确
+    代码模式时使用。结果包含仓库、仓库内相对路径、从 1 开始的行号和命中
+    行片段；需要理解周围实现时，再用该结果调用 get_file_context。
+
+    query 默认按 Zoekt 查询语法解释。搜索包含空格、连字符或查询运算符的
+    完整错误信息、服务名或包名时设置 literal=true。已知仓库、语言或路径
+    范围时应使用对应过滤器，以减少无关结果。该工具只做文本/正则检索，
+    不执行语义分析，也不保证命中就是定义。
     """
     try:
         return await zoekt_client.search(
@@ -71,28 +91,37 @@ async def search_code(
 def get_file_context(
     repository: Annotated[
         str,
-        Field(min_length=1, description="代码仓库名称"),
+        Field(
+            min_length=1,
+            description="search_code 命中结果中的 repo 字段（仓库名称）",
+        ),
     ],
     file_path: Annotated[
         str,
-        Field(min_length=1, description="仓库根目录下的相对文件路径"),
+        Field(
+            min_length=1,
+            description="search_code 命中结果中的 path 字段；必须是仓库内相对路径",
+        ),
     ],
     line_number: Annotated[
         int,
-        Field(ge=1, description="从 1 开始的目标行号"),
+        Field(ge=1, description="search_code 命中结果中的 line 字段（从 1 开始）"),
     ],
     lines_before: Annotated[
         int,
-        Field(ge=0, le=100, description="目标行之前返回的行数"),
+        Field(ge=0, le=100, description="目标行之前返回的源码行数，默认 20"),
     ] = 20,
     lines_after: Annotated[
         int,
-        Field(ge=0, le=100, description="目标行之后返回的行数"),
+        Field(ge=0, le=100, description="目标行之后返回的源码行数，默认 20"),
     ] = 20,
 ) -> FileContext:
-    """读取代码搜索结果所在行附近的源码。
+    """读取一次代码搜索命中位置周围带行号的源码上下文。
 
-    应在 search_code 返回仓库、相对文件路径和行号后调用。
+    应在 search_code 返回候选命中后调用，并原样传入该命中的 repo、path 和
+    line。适合确认命中属于定义、调用还是配置，以及在回答用户前理解附近
+    的控制流。返回内容以 ``>`` 标出目标行，并包含实际起止行、文件总行数
+    和是否截断。不要用它搜索未知文件，也不要传入绝对路径或 ``..`` 路径。
     """
     try:
         return read_file_context(

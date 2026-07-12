@@ -50,7 +50,7 @@ Zoekt Web Server
 - 普通查询与正则查询；
 - 对包含连字符、空格等特殊字符的内容进行字面量搜索；
 - 返回仓库名、文件路径、行号和匹配代码片段；
-- 限制返回结果数量，避免向模型传入过多上下文。
+- 限制返回结果数量，避免向模型传入过多上下文；
 - 根据搜索命中的仓库、相对路径和行号读取源码上下文；
 - 拒绝绝对路径和目录穿越，限制文件访问范围。
 
@@ -89,6 +89,18 @@ export ZOEKT_URL=http://localhost:6070
 export REPOSITORY_ROOT=/path/to/indexed/repositories
 ```
 
+`REPOSITORY_ROOT` 下的一级目录名需要与 Zoekt 返回的仓库名一致。例如：
+
+```text
+/path/to/indexed/repositories/
+├── code-search-mcp/
+└── demo-service/
+```
+
+此时 Zoekt 命中中的 `repo` 应分别为 `code-search-mcp` 或 `demo-service`，
+`get_file_context` 才能找到对应的本地源码。不要把 API Key、公司内网地址或
+本地私有路径提交到仓库。
+
 ### 启动 MCP Server
 
 ```bash
@@ -96,6 +108,28 @@ PYTHONPATH=. .venv/bin/python -m src.server
 ```
 
 该服务使用 stdio 与 MCP 客户端通信，因此直接启动后没有普通 HTTP 页面属于正常现象。
+
+### 配置 MCP 客户端
+
+不同客户端的配置入口不同，核心配置如下。请把 `cwd` 和环境变量替换为你
+自己的绝对路径：
+
+```json
+{
+  "mcpServers": {
+    "code-search": {
+      "command": "/absolute/path/to/mcp-server/.venv/bin/python",
+      "args": ["-m", "src.server"],
+      "cwd": "/absolute/path/to/mcp-server",
+      "env": {
+        "PYTHONPATH": ".",
+        "ZOEKT_URL": "http://localhost:6070",
+        "REPOSITORY_ROOT": "/absolute/path/to/repositories"
+      }
+    }
+  }
+}
+```
 
 ### 使用 MCP Inspector 调试
 
@@ -106,6 +140,100 @@ PYTHONPATH=. .venv/bin/mcp dev src/server.py:mcp
 该命令会通过 MCP Inspector 加载 FastMCP 服务，可以查看工具 schema 并手动调用
 `search_code` 和 `get_file_context`。
 
+## 工具说明
+
+### `search_code`
+
+在 Zoekt 索引中定位精确的源码文本或正则模式。适合查找类名、函数名、错误
+信息、配置键和调用表达式；它是文本/正则搜索，不等同于语义级符号分析。
+
+| 参数 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `query` | `string` | 必填 | 源码文本或 Zoekt 正则表达式 |
+| `repo` | `string \| null` | `null` | 仓库名正则过滤 |
+| `lang` | `string \| null` | `null` | 语言过滤，如 `java`、`go`、`python` |
+| `path` | `string \| null` | `null` | 仓库内文件路径正则过滤 |
+| `limit` | `integer` | `20` | 返回命中数，范围 1～100 |
+| `literal` | `boolean` | `false` | 是否把 `query` 当作完整字面量 |
+
+返回值示例：
+
+```json
+{
+  "query": "UserNotFound",
+  "duration_ms": 3,
+  "matches": [
+    {
+      "repo": "demo-service",
+      "path": "src/service/user_service.py",
+      "line": 128,
+      "snippet": "raise UserNotFound(user_id)"
+    }
+  ]
+}
+```
+
+以下情况建议设置 `literal=true`：
+
+```text
+fintech-mx-wallet-proxy
+connection refused: upstream unavailable
+com.example.user-service
+```
+
+### `get_file_context`
+
+读取一次搜索命中周围的源码。通常先调用 `search_code`，再将某条命中的
+`repo`、`path` 和 `line` 分别传给 `repository`、`file_path` 和
+`line_number`。
+
+| 参数 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `repository` | `string` | 必填 | `search_code` 返回的 `repo` |
+| `file_path` | `string` | 必填 | `search_code` 返回的仓库内相对 `path` |
+| `line_number` | `integer` | 必填 | `search_code` 返回的从 1 开始的 `line` |
+| `lines_before` | `integer` | `20` | 目标行之前的行数，范围 0～100 |
+| `lines_after` | `integer` | `20` | 目标行之后的行数，范围 0～100 |
+
+返回的 `content` 带真实行号，并以 `>` 标出目标行：
+
+```text
+   126 |     user = repository.find(user_id)
+   127 |     if user is None:
+>  128 |         raise UserNotFound(user_id)
+   129 |     return user
+```
+
+为避免任意文件读取，`file_path` 只接受仓库内相对路径，绝对路径和逃出仓库
+根目录的 `..` 路径都会被拒绝。
+
+## 完整调用流程
+
+向 MCP 客户端提问：
+
+```text
+在 demo-service 中查找 UserNotFound，读取最相关命中前后各 10 行，
+然后说明这段代码在什么情况下抛出异常。若信息不足，请明确说明。
+```
+
+理想工具调用链：
+
+```text
+search_code(query="UserNotFound", repo="demo-service", limit=10)
+    ↓
+选择相关的 repo + path + line
+    ↓
+get_file_context(
+    repository="demo-service",
+    file_path="src/service/user_service.py",
+    line_number=128,
+    lines_before=10,
+    lines_after=10
+)
+    ↓
+客户端基于真实源码回答，并引用文件与行号
+```
+
 ## 手动验证搜索
 
 确保 Zoekt 已启动并已加载索引，然后执行：
@@ -113,6 +241,47 @@ PYTHONPATH=. .venv/bin/mcp dev src/server.py:mcp
 ```bash
 PYTHONPATH=. .venv/bin/python test/test_search.py
 ```
+
+## 运行测试
+
+单元测试默认不要求启动真实 Zoekt：
+
+```bash
+PYTHONPATH=. .venv/bin/pytest -v
+```
+
+若环境中没有 `pytest`，先安装：
+
+```bash
+pip install pytest
+```
+
+## 常见问题
+
+### 客户端启动后看不到工具
+
+- 确认客户端配置中的 Python、`cwd` 都是绝对路径；
+- 确认虚拟环境已经安装 `requirements.txt`；
+- 确认以项目根目录作为工作目录，并设置 `PYTHONPATH=.`；
+- 在 MCP Inspector 中先验证服务能否加载。
+
+### `search_code` 报连接失败
+
+- 确认 Zoekt Web Server 正在运行；
+- 确认 `ZOEKT_URL` 可从 MCP Server 进程访问；
+- 确认 Zoekt 已加载目标仓库索引。
+
+### 搜索有结果，但 `get_file_context` 提示仓库或文件不存在
+
+- 确认 `REPOSITORY_ROOT/<repo>` 是实际存在的目录；
+- 确认 Zoekt 返回的仓库名与本地一级目录名一致；
+- 确认搜索结果中的路径是仓库内相对路径；
+- 确认 Zoekt 索引对应的源码与本地源码版本一致。
+
+### 搜索服务名或完整错误信息时没有结果
+
+带空格、连字符或 Zoekt 查询运算符的完整文本应设置 `literal=true`。需要正则
+能力时则保持 `literal=false`。
 
 ## 设计取舍
 
@@ -124,7 +293,7 @@ PYTHONPATH=. .venv/bin/python test/test_search.py
 
 ### 为什么通过 MCP 暴露能力？
 
-MCP 将搜索能力与具体 AI 客户端解耦。同一个服务可以被不同的 Agent 或开发工具调用，也便于未来继续增加 `get_file_context`、`find_symbol` 和 `find_references` 等工具。
+MCP 将搜索能力与具体 AI 客户端解耦。同一个服务可以被不同的 Agent 或开发工具调用，也便于未来继续增加 `find_symbol` 和 `find_references` 等工具。
 
 ## Roadmap
 
@@ -132,7 +301,8 @@ MCP 将搜索能力与具体 AI 客户端解耦。同一个服务可以被不同
 - [x] 提供 `search_code` MCP 工具
 - [x] 支持仓库、语言、路径和字面量过滤
 - [x] 补充 Zoekt 查询构造和响应解析单元测试
-- [ ] 补充 MCP Server 和 Zoekt 集成测试
+- [x] 补充 MCP Server 基本测试
+- [ ] 补充真实 Zoekt 集成测试
 - [x] 增加 `get_file_context`
 - [ ] 增加 `find_symbol` 和 `find_references`
 - [ ] 控制上下文长度并改善结果排序
