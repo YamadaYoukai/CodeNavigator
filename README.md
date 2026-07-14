@@ -74,10 +74,23 @@ fintech-mx-wallet-proxy 在哪些仓库中被引用？
 
 ### 安装依赖
 
+项目运行依赖和开发依赖定义在 `pyproject.toml` 中。创建并激活虚拟环境：
+
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+```
+
+仅安装运行依赖：
+
+```bash
+python -m pip install .
+```
+
+本地开发或运行测试时，安装可编辑版本和开发依赖：
+
+```bash
+python -m pip install -e ".[dev]"
 ```
 
 ### 配置 Zoekt 地址
