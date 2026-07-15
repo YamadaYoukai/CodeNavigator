@@ -76,6 +76,26 @@ class ReadFileContextTest(unittest.TestCase):
                 line_number=1,
             )
 
+    def test_rejects_absolute_file_path(self):
+        with self.assertRaisesRegex(InvalidFilePathError, "file_path must be relative to the repository root"):
+            read_file_context(
+                repository="demo",
+                repository_root=self.repository_root,
+                file_path="/example.py",
+                line_number=1
+            )
+
+    def test_rejects_is_not_file(self):
+        with self.assertRaises(InvalidFilePathError):
+            self.src_folder = Path(self.repository_root) / "src"
+            self.src_folder.mkdir()
+            read_file_context(
+                repository="demo",
+                repository_root=self.repository_root,
+                file_path="src",
+                line_number=1
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

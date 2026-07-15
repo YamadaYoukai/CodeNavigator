@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 from mcp.server.fastmcp.exceptions import ToolError
 
 from src.models import CodeSearchResponse
-from src.server import mcp, search_code
+from src.server import mcp, search_code, get_file_context
 
 
 class ToolSchemaTest(unittest.IsolatedAsyncioTestCase):
@@ -58,6 +58,52 @@ class SearchToolTest(unittest.IsolatedAsyncioTestCase):
 
         with self.assertRaisesRegex(ToolError, "搜索失败"):
             await search_code("UserService", limit=0)
+
+
+class GetFileContextTest(unittest.TestCase):
+    @patch("src.server.read_file_context")
+    @patch("src.server.get_repository_root", return_value="/tmp/demo")
+    def test_converts_value_error_to_tool_error_with_original_reason(
+        self,
+        get_repository_root: unittest.mock.Mock,
+        read_file_context: unittest.mock.Mock,
+    ):
+        reason = "line_number 99 exceeds file length 3"
+        read_file_context.side_effect = ValueError(reason)
+
+        with self.assertRaises(ToolError) as raised:
+            get_file_context(
+                repository="demo",
+                file_path="example.py",
+                line_number=99,
+            )
+
+        message = str(raised.exception)
+        self.assertIn("读取文件上下文失败", message)
+        self.assertIn(reason, message)
+        get_repository_root.assert_called_once_with("demo")
+
+    @patch("src.server.read_file_context")
+    @patch("src.server.get_repository_root", return_value="/tmp/demo")
+    def test_converts_file_not_found_error_to_tool_error_with_original_reason(
+        self,
+        get_repository_root: unittest.mock.Mock,
+        read_file_context: unittest.mock.Mock,
+    ):
+        reason = "File does not exist: missing.py"
+        read_file_context.side_effect = FileNotFoundError(reason)
+
+        with self.assertRaises(ToolError) as raised:
+            get_file_context(
+                repository="demo",
+                file_path="missing.py",
+                line_number=1,
+            )
+
+        message = str(raised.exception)
+        self.assertIn("读取文件上下文失败", message)
+        self.assertIn(reason, message)
+        get_repository_root.assert_called_once_with("demo")
 
 
 if __name__ == "__main__":
