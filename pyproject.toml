@@ -29,3 +29,6 @@ include = ["src", "src.*"]
 [tool.pytest.ini_options]
 testpaths = ["test"]
 pythonpath = ["."]
+markers = [
+    "integration: requires a real Zoekt server and RUN_ZOEKT_INTEGRATION=1",
+]

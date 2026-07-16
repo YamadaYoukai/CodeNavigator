@@ -269,6 +269,38 @@ PYTHONPATH=. .venv/bin/pytest -v
 pip install pytest
 ```
 
+### 真实 Zoekt integration 测试
+
+真实集成测试默认关闭：即使普通 `pytest` 收集到它，也会在**发起任何网络请求
+之前**跳过。它固定校验本地 `../repos/fulfillment` checkout 中的以下基线：
+
+```text
+仓库：fulfillment
+文件：wallet-fulfillment-handler/src/main/java/com/xiaoju/wallet/fulfillment/handler/FulfillmentBaseBizHandler.java
+代码：fulfillmentBaseService.fulfillProcessDecision(fulfillmentBaseContext.getFulfillmentBaseDO());
+```
+
+当前 checkout 中该类位于 `wallet-fulfillment-handler` 模块；
+`wallet-fulfillment-integration/.../FulfillmentBaseBizHandler.java` 不存在。测试会
+调用真实的 `search_code`，校验返回的 repo、path、line 和本地源码行，再把该命中
+原样传给 `get_file_context`。同时会执行中文字面量查询 `履约处理决策`。
+
+确保 Zoekt 已启动、启用了 `-rpc`，并且其 `fulfillment` 索引与本地
+`../repos/fulfillment` checkout 对应后，执行：
+
+```bash
+RUN_ZOEKT_INTEGRATION=1 \
+ZOEKT_URL=http://localhost:6070 \
+REPOSITORY_ROOT="$(cd .. && pwd)/repos" \
+python -m pytest -q -m integration
+```
+
+每次已启用的执行都会将可复现性信息写入
+`.artifacts/zoekt-integration.json`（可通过 `ZOEKT_INTEGRATION_REPORT` 改写路径）：
+Zoekt 地址、Python/HTTP 客户端信息、Zoekt Server commit 或 version、索引仓库
+commit、本地 checkout commit、起止时间、耗时和执行结果。若服务器的 `/about`
+页面不暴露 build commit，可额外设置 `ZOEKT_SERVER_COMMIT`，它会优先写入报告。
+
 ## 常见问题
 
 ### 客户端启动后看不到工具
@@ -315,7 +347,7 @@ MCP 将搜索能力与具体 AI 客户端解耦。同一个服务可以被不同
 - [x] 支持仓库、语言、路径和字面量过滤
 - [x] 补充 Zoekt 查询构造和响应解析单元测试
 - [x] 补充 MCP Server 基本测试
-- [ ] 补充真实 Zoekt 集成测试
+- [x] 补充真实 Zoekt 集成测试（默认关闭）
 - [x] 增加 `get_file_context`
 - [ ] 增加 `find_symbol` 和 `find_references`
 - [ ] 控制上下文长度并改善结果排序
