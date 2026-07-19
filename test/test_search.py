@@ -17,7 +17,7 @@ async def main():
         {"query": "@Autowired", "lang": "java", "limit": 5},
         {"query": "throw new", "lang": "java", "limit": 5},
         # 含连字符的字面量 — literal=true 防止 - 被当成否定运算符
-        {"query": "fintech-mx-wallet-proxy", "lang": "java", "literal": True, "limit": 5},
+        {"query": "sample-service-v2", "lang": "java", "literal": True, "limit": 5},
     ]
     for c in cases:
         print(f"\n>>> {c}")

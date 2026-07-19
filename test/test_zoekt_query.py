@@ -8,19 +8,19 @@ class BuildZoektQueryTest(unittest.TestCase):
     def test_should_append_filters(self):
         result = build_zoekt_query(
             query="@RestController",
-            repo="wallet",
+            repo="demo-service",
             lang="java",
             path="src/main",
         )
 
         self.assertEqual(
             result,
-            "@RestController r:wallet lang:java f:src/main",
+            "@RestController r:demo-service lang:java f:src/main",
         )
 
     def test_should_quote_literal_with_hyphen(self):
         result = build_zoekt_query(
-            query="fintech-mx-wallet-proxy",
+            query="sample-service-v2",
             repo=None,
             lang="java",
             path=None,
@@ -29,7 +29,7 @@ class BuildZoektQueryTest(unittest.TestCase):
 
         self.assertEqual(
             result,
-            '"fintech-mx-wallet-proxy" lang:java',
+            '"sample-service-v2" lang:java',
         )
 
     def test_should_preserve_regular_query(self):

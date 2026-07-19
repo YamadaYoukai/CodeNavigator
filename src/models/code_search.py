@@ -28,8 +28,8 @@ class CodeSearchRequest(BaseModel):
         default=False,
         description=(
             "字面量搜索:true 时把 query 当成纯字符串,自动转义 zoekt 运算符 "
-            "(连字符 - / ! / 引号 / 空格 等)。搜服务名 'fintech-mx-wallet-proxy'、"
-            "包名 com.didi.foo 等含特殊字符的字面值时建议设 true。"
+            "(连字符 - / ! / 引号 / 空格 等)。搜索包含特殊字符的服务名或"
+            "包名时建议设 true。"
             "regex 搜索请保持 false。默认 false。"
         ),
     )
