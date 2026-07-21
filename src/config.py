@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 
 
-DEFAULT_REPOSITORY_ROOT = Path(__file__).resolve().parents[2] / "repos"
+DEFAULT_REPOSITORY_ROOT = Path(__file__).resolve().parents[2] / "public-repos"
 
 
 def get_base_repository() -> Path:
