@@ -308,6 +308,33 @@ pip install pytest
 `search_code → get_file_context` 调用轨迹、原始可见返回结果和限制说明见
 上方“公开 Click 端到端演示”中的两份证据。
 
+#### Click 检索评测基线
+
+公开评测集位于 `evaluation/cases.jsonl`，固定使用
+[`pallets/click` 8.4.1 commit `6eeb50e948ea136db145280f6f5dd52eca3fa7e5`](https://github.com/pallets/click/tree/6eeb50e948ea136db145280f6f5dd52eca3fa7e5)。
+先确认本地 checkout 与索引都使用该 revision，且 Zoekt 返回的仓库名为 `click`：
+
+```bash
+git -C "$REPOSITORY_ROOT/click" rev-parse HEAD
+PYTHONPATH=. .venv/bin/python evaluation/run_eval.py \
+  --out evaluation/reports/baseline-YYYY-MM-DD.json
+```
+
+评测集包含正向命中、无命中和上下文边界三类样例。每个正向样例声明金标
+`repo`、`path` 与精确行号或可接受行号范围；无命中样例则明确声明受检
+`repo`、`path`、`line: null` 和 `failure_reason`。无命中正确时不会调用
+`get_file_context`，也不会被算入 Hit@1、Hit@5 或 `search_code → get_file_context`
+闭环的分母，而是在 `no_match_success` 中单独统计。
+
+两个 `context_boundary_*` 样例分别命中 `src/click/globals.py` 的第 1 行和第
+64 行，并断言 `get_file_context` 返回的实际 `start_line`、`end_line`、
+`total_lines`、`truncated` 以及目标行标记。这会覆盖文件开头和结尾的截断行为。
+
+报告会记录每条样例的原始 wall-clock 时间、聚合的 `latency_ms.search_wall` 与
+`latency_ms.closed_loop_wall`，以及本地 checkout revision。调用顺序、固定查询和
+`time.perf_counter` 的计时定义也写入 JSON，因而质量指标可以精确复现；延迟会随
+机器与 Zoekt 运行状态变化，应比较同一环境下的报告而非要求逐毫秒一致。
+
 本地私有仓库的测试基线和输出只保存在被 Git 忽略的目录，不纳入公开仓库或发行物。
 
 每次已启用的执行都会将可复现性信息写入

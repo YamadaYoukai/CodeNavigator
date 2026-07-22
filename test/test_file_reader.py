@@ -49,6 +49,21 @@ class ReadFileContextTest(unittest.TestCase):
         self.assertEqual(result.end_line, 5)
         self.assertFalse(result.truncated)
 
+    def test_clamps_context_at_end_boundary(self):
+        result = read_file_context(
+            repository="demo",
+            repository_root=self.repository_root,
+            file_path="example.py",
+            line_number=5,
+            lines_before=2,
+            lines_after=20,
+        )
+
+        self.assertEqual(result.start_line, 3)
+        self.assertEqual(result.end_line, 5)
+        self.assertIn(">    5 | line 5", result.content)
+        self.assertTrue(result.truncated)
+
     def test_rejects_path_outside_repository(self):
         with self.assertRaises(InvalidFilePathError):
             read_file_context(
