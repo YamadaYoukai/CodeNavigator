@@ -3,8 +3,10 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from evaluation.run_eval import (
     EvaluationCaseError,
+    PROJECT_ROOT,
     build_summary,
     evaluate_case,
+    load_cases,
     validate_case,
 )
 from src.models.code_search import CodeMatch, CodeSearchResponse
@@ -108,6 +110,51 @@ class ValidateEvaluationCaseTest(unittest.TestCase):
                 "start_line cannot exceed end_line",
         ):
             validate_case(case, 1)
+
+
+class PublicClickEvaluationDataTest(unittest.TestCase):
+    def test_public_cases_are_valid_and_cover_required_scenarios(self):
+        cases = load_cases(PROJECT_ROOT / "evaluation/cases.jsonl")
+        cases_by_id = {case["id"]: case for case in cases}
+        categories = {case["category"] for case in cases}
+
+        self.assertEqual(len(cases), 18)
+        self.assertTrue(all(
+            case["expected"]["repo"] == "click"
+            for case in cases
+        ))
+        self.assertTrue(all(
+            isinstance(case["category"], str) and case["category"]
+            for case in cases
+        ))
+        self.assertTrue({
+            "duplicate_hits",
+            "irrelevant_results",
+            "unscoped_path",
+            "symbol_candidates",
+            "error_text",
+            "language_path_filter",
+            "context_overlong",
+        }.issubset(categories))
+
+        self.assertNotIn(
+            "path",
+            cases_by_id["click-unscoped-path-001"]["search"],
+        )
+        self.assertEqual(
+            cases_by_id["click-language-path-001"]["search"]["lang"],
+            "python",
+        )
+        self.assertEqual(
+            cases_by_id["click-language-path-001"]["search"]["path"],
+            "src/click/types\\.py",
+        )
+        self.assertEqual(
+            cases_by_id["click-context-overlong-001"]["expected"][
+                "context"
+            ]["total_lines"],
+            3542,
+        )
 
 
 class EvaluateCaseTest(unittest.IsolatedAsyncioTestCase):

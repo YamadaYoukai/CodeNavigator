@@ -310,21 +310,42 @@ pip install pytest
 
 #### Click 检索评测基线
 
-公开评测集位于 `evaluation/cases.jsonl`，固定使用
+公开评测集位于 `evaluation/cases.jsonl`，当前共 18 条，固定使用
 [`pallets/click` 8.4.1 commit `6eeb50e948ea136db145280f6f5dd52eca3fa7e5`](https://github.com/pallets/click/tree/6eeb50e948ea136db145280f6f5dd52eca3fa7e5)。
 先确认本地 checkout 与索引都使用该 revision，且 Zoekt 返回的仓库名为 `click`：
 
 ```bash
 git -C "$REPOSITORY_ROOT/click" rev-parse HEAD
+PYTHONPATH=. .venv/bin/python evaluation/run_eval.py --validate-only
 PYTHONPATH=. .venv/bin/python evaluation/run_eval.py \
   --out evaluation/reports/baseline-YYYY-MM-DD.json
 ```
 
-评测集包含正向命中、无命中和上下文边界三类样例。每个正向样例声明金标
+评测集包含正向命中、无命中、上下文边界，以及重复命中、无关结果、未限定
+路径、符号候选、错误文本、语言/路径组合和长文件上下文等样例。每个正向样例声明金标
 `repo`、`path` 与精确行号或可接受行号范围；无命中样例则明确声明受检
 `repo`、`path`、`line: null` 和 `failure_reason`。无命中正确时不会调用
 `get_file_context`，也不会被算入 Hit@1、Hit@5 或 `search_code → get_file_context`
 闭环的分母，而是在 `no_match_success` 中单独统计。
+
+固定 revision 上的逐条人工 `git grep` 复核记录见
+[`evaluation/click-8.4.1-manual-grep.md`](evaluation/click-8.4.1-manual-grep.md)。该清单记录每条样例的类别、目标仓库、路径和可接受行号范围。重复候选、无关结果和未限定路径的样例会保留 Zoekt 原始返回顺序；即使金标未排在 Top-1 或 Top-5，也不会为了提高指标收窄查询或调整排序。
+
+#### 2026-07-23 真实 Zoekt 重跑结果
+
+[`baseline-2026-07-23.json`](evaluation/reports/baseline-2026-07-23.json) 与 2026-07-22 的基线对比如下。新集新增的 8 条故意覆盖了候选重复、文档/注释噪声和未限定路径的情况，因此质量指标的分母扩大，不能把百分比降低解读为对原 10 条已覆盖场景的回归。
+
+| 指标 | 2026-07-22（10 条 / 8 类） | 2026-07-23（18 条 / 15 类） |
+| --- | ---: | ---: |
+| 正向 / 无命中样例 | 8 / 2 | 16 / 2 |
+| Hit@1 | 8/8（100%） | 12/16（75%） |
+| Hit@5 | 8/8（100%） | 13/16（81.25%） |
+| `search_code → get_file_context` 闭环 | 8/8（100%） | 12/16（75%） |
+| 无命中正确率 | 2/2（100%） | 2/2（100%） |
+| 平均 search wall latency | 28.551 ms | 19.231 ms |
+| 平均 closed-loop wall latency | 29.840 ms | 20.320 ms |
+
+重跑没有搜索或上下文读取错误。4 条如实保留为 `top1_miss`：两个 `duplicate_hits`、`irrelevant_results`，以及 `unscoped_path`；其中 `unscoped_path` 的金标仍在 Top-5。延迟反映此次本地服务状态，适合作为同一环境内的对照而非跨机器 SLA。
 
 两个 `context_boundary_*` 样例分别命中 `src/click/globals.py` 的第 1 行和第
 64 行，并断言 `get_file_context` 返回的实际 `start_line`、`end_line`、

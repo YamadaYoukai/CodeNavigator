@@ -865,6 +865,12 @@ def parse_args() -> argparse.Namespace:
         help="Only run the first N cases",
     )
 
+    parser.add_argument(
+        "--validate-only",
+        action="store_true",
+        help="Validate the evaluation JSONL without calling Zoekt",
+    )
+
     return parser.parse_args()
 
 
@@ -889,6 +895,13 @@ async def async_main() -> int:
     except (OSError, ValueError) as exc:
         print(f"Failed to load evaluation cases: {exc}", file=sys.stderr)
         return 2
+
+    if args.validate_only:
+        print(
+            f"Validated {len(cases)} evaluation case(s): "
+            f"{display_path(cases_path)}"
+        )
+        return 0
 
     records: list[dict[str, Any]] = []
 
