@@ -1,0 +1,358 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-21T17:20:54.566448+00:00",
+  "execution": {
+    "mode": "direct_python_tool_calls",
+    "search_tool": "search_code",
+    "context_tool": "get_file_context",
+    "context_selection": "Top-1 search result"
+  },
+  "cases_file": "evaluation/cases.jsonl",
+  "summary": {
+    "total_cases": 6,
+    "hit_at_1": {
+      "count": 6,
+      "rate": 1.0
+    },
+    "hit_at_5": {
+      "count": 6,
+      "rate": 1.0
+    },
+    "context_success": {
+      "count": 6,
+      "rate": 1.0
+    },
+    "closed_loop_success": {
+      "count": 6,
+      "rate": 1.0
+    },
+    "search_errors": 0,
+    "context_errors": 0,
+    "average_search_tool_duration_ms": 0.333,
+    "average_search_wall_duration_ms": 28.347,
+    "average_context_wall_duration_ms": 0.628,
+    "average_total_wall_duration_ms": 28.995
+  },
+  "cases": [
+    {
+      "id": "click-error-001",
+      "category": "error_message",
+      "search": {
+        "query": "The given command does not have a callback that can be invoked.",
+        "repo": "click",
+        "lang": "python",
+        "path": "src/click/core\\.py",
+        "limit": 10,
+        "literal": true
+      },
+      "expected": {
+        "repo": "click",
+        "path": "src/click/core.py",
+        "line_min": 848,
+        "line_max": 848
+      },
+      "status": "ok",
+      "matches": [
+        {
+          "repo": "click",
+          "path": "src/click/core.py",
+          "line": 848,
+          "snippet": "\"The given command does not have a callback that can be invoked.\""
+        }
+      ],
+      "top_match": {
+        "repo": "click",
+        "path": "src/click/core.py",
+        "line": 848,
+        "snippet": "\"The given command does not have a callback that can be invoked.\""
+      },
+      "hit_at_1": true,
+      "hit_at_5": true,
+      "context_ok": true,
+      "closed_loop": true,
+      "search_tool_duration_ms": 1,
+      "search_wall_duration_ms": 52.272,
+      "context_wall_duration_ms": 0.968,
+      "context": {
+        "repository": "click",
+        "file_path": "src/click/core.py",
+        "target_line": 848,
+        "start_line": 828,
+        "end_line": 868,
+        "total_lines": 3542,
+        "truncated": true
+      },
+      "errors": {
+        "search": null,
+        "context": null
+      },
+      "total_wall_duration_ms": 53.263
+    },
+    {
+      "id": "click-symbol-001",
+      "category": "symbol_search",
+      "search": {
+        "query": "class ParameterSource\\(",
+        "repo": "click",
+        "path": "src/click/core\\.py",
+        "limit": 10,
+        "literal": true
+      },
+      "expected": {
+        "repo": "click",
+        "path": "src/click/core.py",
+        "line_min": 163,
+        "line_max": 163
+      },
+      "status": "ok",
+      "matches": [
+        {
+          "repo": "click",
+          "path": "src/click/core.py",
+          "line": 163,
+          "snippet": "class ParameterSource(enum.IntEnum):"
+        }
+      ],
+      "top_match": {
+        "repo": "click",
+        "path": "src/click/core.py",
+        "line": 163,
+        "snippet": "class ParameterSource(enum.IntEnum):"
+      },
+      "hit_at_1": true,
+      "hit_at_5": true,
+      "context_ok": true,
+      "closed_loop": true,
+      "search_tool_duration_ms": 0,
+      "search_wall_duration_ms": 24.188,
+      "context_wall_duration_ms": 0.543,
+      "context": {
+        "repository": "click",
+        "file_path": "src/click/core.py",
+        "target_line": 163,
+        "start_line": 143,
+        "end_line": 183,
+        "total_lines": 3542,
+        "truncated": true
+      },
+      "errors": {
+        "search": null,
+        "context": null
+      },
+      "total_wall_duration_ms": 24.752
+    },
+    {
+      "id": "click-error-002",
+      "category": "error_message",
+      "search": {
+        "query": "No such command {name!r}.",
+        "repo": "click",
+        "lang": "python",
+        "path": "src/click/exceptions\\.py",
+        "limit": 10,
+        "literal": true
+      },
+      "expected": {
+        "repo": "click",
+        "path": "src/click/exceptions.py",
+        "line_min": 265,
+        "line_max": 265
+      },
+      "status": "ok",
+      "matches": [
+        {
+          "repo": "click",
+          "path": "src/click/exceptions.py",
+          "line": 265,
+          "snippet": "message = _(\"No such command {name!r}.\").format(name=command_name)"
+        }
+      ],
+      "top_match": {
+        "repo": "click",
+        "path": "src/click/exceptions.py",
+        "line": 265,
+        "snippet": "message = _(\"No such command {name!r}.\").format(name=command_name)"
+      },
+      "hit_at_1": true,
+      "hit_at_5": true,
+      "context_ok": true,
+      "closed_loop": true,
+      "search_tool_duration_ms": 0,
+      "search_wall_duration_ms": 21.428,
+      "context_wall_duration_ms": 0.587,
+      "context": {
+        "repository": "click",
+        "file_path": "src/click/exceptions.py",
+        "target_line": 265,
+        "start_line": 245,
+        "end_line": 285,
+        "total_lines": 347,
+        "truncated": true
+      },
+      "errors": {
+        "search": null,
+        "context": null
+      },
+      "total_wall_duration_ms": 22.035
+    },
+    {
+      "id": "click-config-001",
+      "category": "config_key",
+      "search": {
+        "query": "auto_envvar_prefix: str \\| None = None",
+        "repo": "click",
+        "path": "src/click/core\\.py",
+        "limit": 10,
+        "literal": true
+      },
+      "expected": {
+        "repo": "click",
+        "path": "src/click/core.py",
+        "line_min": 312,
+        "line_max": 312
+      },
+      "status": "ok",
+      "matches": [
+        {
+          "repo": "click",
+          "path": "src/click/core.py",
+          "line": 312,
+          "snippet": "auto_envvar_prefix: str | None = None,"
+        }
+      ],
+      "top_match": {
+        "repo": "click",
+        "path": "src/click/core.py",
+        "line": 312,
+        "snippet": "auto_envvar_prefix: str | None = None,"
+      },
+      "hit_at_1": true,
+      "hit_at_5": true,
+      "context_ok": true,
+      "closed_loop": true,
+      "search_tool_duration_ms": 1,
+      "search_wall_duration_ms": 26.476,
+      "context_wall_duration_ms": 0.624,
+      "context": {
+        "repository": "click",
+        "file_path": "src/click/core.py",
+        "target_line": 312,
+        "start_line": 292,
+        "end_line": 332,
+        "total_lines": 3542,
+        "truncated": true
+      },
+      "errors": {
+        "search": null,
+        "context": null
+      },
+      "total_wall_duration_ms": 27.121
+    },
+    {
+      "id": "click-path-001",
+      "category": "path_filter",
+      "search": {
+        "query": "get_text_stream",
+        "repo": "click",
+        "path": "src/click/utils\\.py",
+        "limit": 10,
+        "literal": true
+      },
+      "expected": {
+        "repo": "click",
+        "path": "src/click/utils.py",
+        "line_min": 349,
+        "line_max": 349
+      },
+      "status": "ok",
+      "matches": [
+        {
+          "repo": "click",
+          "path": "src/click/utils.py",
+          "line": 349,
+          "snippet": "def get_text_stream("
+        }
+      ],
+      "top_match": {
+        "repo": "click",
+        "path": "src/click/utils.py",
+        "line": 349,
+        "snippet": "def get_text_stream("
+      },
+      "hit_at_1": true,
+      "hit_at_5": true,
+      "context_ok": true,
+      "closed_loop": true,
+      "search_tool_duration_ms": 0,
+      "search_wall_duration_ms": 20.194,
+      "context_wall_duration_ms": 0.54,
+      "context": {
+        "repository": "click",
+        "file_path": "src/click/utils.py",
+        "target_line": 349,
+        "start_line": 329,
+        "end_line": 369,
+        "total_lines": 641,
+        "truncated": true
+      },
+      "errors": {
+        "search": null,
+        "context": null
+      },
+      "total_wall_duration_ms": 20.754
+    },
+    {
+      "id": "click-language-001",
+      "category": "language_filter",
+      "search": {
+        "query": "def resolve_color_default\\(",
+        "repo": "click",
+        "lang": "python",
+        "limit": 10,
+        "literal": true
+      },
+      "expected": {
+        "repo": "click",
+        "path": "src/click/globals.py",
+        "line_min": 54,
+        "line_max": 54
+      },
+      "status": "ok",
+      "matches": [
+        {
+          "repo": "click",
+          "path": "src/click/globals.py",
+          "line": 54,
+          "snippet": "def resolve_color_default(color: bool | None = None) -> bool | None:"
+        }
+      ],
+      "top_match": {
+        "repo": "click",
+        "path": "src/click/globals.py",
+        "line": 54,
+        "snippet": "def resolve_color_default(color: bool | None = None) -> bool | None:"
+      },
+      "hit_at_1": true,
+      "hit_at_5": true,
+      "context_ok": true,
+      "closed_loop": true,
+      "search_tool_duration_ms": 0,
+      "search_wall_duration_ms": 25.525,
+      "context_wall_duration_ms": 0.503,
+      "context": {
+        "repository": "click",
+        "file_path": "src/click/globals.py",
+        "target_line": 54,
+        "start_line": 34,
+        "end_line": 67,
+        "total_lines": 67,
+        "truncated": true
+      },
+      "errors": {
+        "search": null,
+        "context": null
+      },
+      "total_wall_duration_ms": 26.048
+    }
+  ]
+}
