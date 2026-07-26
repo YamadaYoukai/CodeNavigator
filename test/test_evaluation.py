@@ -158,6 +158,89 @@ class PublicClickEvaluationDataTest(unittest.TestCase):
 
 
 class EvaluateCaseTest(unittest.IsolatedAsyncioTestCase):
+    async def test_records_raw_zoekt_order_and_ranked_order_separately(self):
+        case = validate_case({
+            "id": "rank-change",
+            "category": "symbol_candidates",
+            "search": {
+                "query": "UsageError",
+                "repo": "click",
+                "literal": True,
+            },
+            "expected": {
+                "outcome": "match",
+                "repo": "click",
+                "path": "src/click/exceptions.py",
+                "line": 65,
+            },
+        }, 1)
+        raw_matches = [
+            CodeMatch(
+                repo="click",
+                path="src/click/core.py",
+                line=33,
+                snippet="from .exceptions import UsageError",
+            ),
+            CodeMatch(
+                repo="click",
+                path="src/click/exceptions.py",
+                line=65,
+                snippet="class UsageError(ClickException):",
+            ),
+        ]
+        ranked_matches = list(reversed(raw_matches))
+        search_result = CodeSearchResponse(
+            query="UsageError",
+            duration_ms=1,
+            matches=ranked_matches,
+        )
+        search_result._zoekt_matches = raw_matches
+        context_result = FileContext(
+            repository="click",
+            file_path="src/click/exceptions.py",
+            target_line=65,
+            start_line=45,
+            end_line=85,
+            total_lines=320,
+            content=">   65 | class UsageError(ClickException):",
+            truncated=True,
+        )
+
+        with patch(
+                "evaluation.run_eval.search_code",
+                new=AsyncMock(return_value=search_result),
+        ), patch(
+                "evaluation.run_eval.get_file_context",
+                new=Mock(return_value=context_result),
+        ):
+            record = await evaluate_case(case)
+
+        self.assertEqual(
+            [(item["path"], item["line"]) for item in record["zoekt_matches"]],
+            [
+                ("src/click/core.py", 33),
+                ("src/click/exceptions.py", 65),
+            ],
+        )
+        self.assertEqual(
+            [(item["path"], item["line"]) for item in record["matches"]],
+            [
+                ("src/click/exceptions.py", 65),
+                ("src/click/core.py", 33),
+            ],
+        )
+        self.assertTrue(record["reranking"]["eligible"])
+        self.assertTrue(record["reranking"]["changed"])
+        self.assertEqual(record["reranking"]["raw_gold_rank"], 2)
+        self.assertEqual(record["reranking"]["ranked_gold_rank"], 1)
+
+        summary = build_summary([record])
+        self.assertEqual(summary["declaration_reranking"]["reordered_cases"], 1)
+        self.assertEqual(
+            summary["declaration_reranking"]["raw_hit_at_1"]["count"],
+            0,
+        )
+
     async def test_no_match_skips_context_and_is_a_separate_success(self):
         case = validate_case({
             "id": "no-match",

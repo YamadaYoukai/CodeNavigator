@@ -35,6 +35,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.config import get_base_repository, get_repository_root
 from src.server import get_file_context, search_code
+from src.services.declaration_reranker import is_declaration_rerank_eligible
 
 
 SEARCH_FIELDS = {
@@ -446,6 +447,27 @@ def is_expected_match(
     )
 
 
+def expected_match_rank(
+        matches: list[dict[str, Any]],
+        expected: dict[str, Any],
+) -> int | None:
+    """Return the one-based rank of the first gold candidate, if present."""
+    expected_repo = expected["repo"]
+    expected_path = expected["path"]
+    line_min = expected["line_min"]
+    line_max = expected["line_max"]
+
+    for index, match in enumerate(matches, start=1):
+        if (
+                match.get("repo") == expected_repo
+                and match.get("path") == expected_path
+                and line_min <= match.get("line", -1) <= line_max
+        ):
+            return index
+
+    return None
+
+
 def elapsed_ms(started_at: float) -> float:
     return round((time.perf_counter() - started_at) * 1000, 3)
 
@@ -463,8 +485,20 @@ async def evaluate_case(case: dict[str, Any]) -> dict[str, Any]:
         "expected": expected,
         "expected_result_met": False,
         "status": "pending",
+        "zoekt_matches": [],
+        "zoekt_top_match": None,
         "matches": [],
         "top_match": None,
+        "reranking": {
+            "eligible": is_declaration_rerank_eligible(
+                query=case["search"]["query"].strip(),
+                path=case["search"].get("path"),
+                literal=case["search"].get("literal", False),
+            ),
+            "changed": None,
+            "raw_gold_rank": None,
+            "ranked_gold_rank": None,
+        },
         "hit_at_1": None,
         "hit_at_5": None,
         "no_match_ok": None,
@@ -509,9 +543,19 @@ async def evaluate_case(case: dict[str, Any]) -> dict[str, Any]:
         model_to_dict(match)
         for match in getattr(search_result, "matches", [])
     ]
+    raw_result_matches = getattr(search_result, "_zoekt_matches", None)
+    if raw_result_matches is None:
+        raw_result_matches = getattr(search_result, "matches", [])
+    raw_matches = [
+        model_to_dict(match)
+        for match in raw_result_matches
+    ]
 
+    record["zoekt_matches"] = raw_matches
+    record["zoekt_top_match"] = raw_matches[0] if raw_matches else None
     record["matches"] = matches
     record["top_match"] = matches[0] if matches else None
+    record["reranking"]["changed"] = raw_matches != matches
     record["search_tool_duration_ms"] = getattr(
         search_result,
         "duration_ms",
@@ -530,6 +574,14 @@ async def evaluate_case(case: dict[str, Any]) -> dict[str, Any]:
 
     record["hit_at_1"] = is_expected_match(matches[:1], expected)
     record["hit_at_5"] = is_expected_match(matches[:5], expected)
+    record["reranking"]["raw_gold_rank"] = expected_match_rank(
+        raw_matches,
+        expected,
+    )
+    record["reranking"]["ranked_gold_rank"] = expected_match_rank(
+        matches,
+        expected,
+    )
 
     # Use the actual Top-1 result for the second Tool call.
     # Do not scan for the gold result, otherwise the closed-loop metric
@@ -755,6 +807,27 @@ def build_summary(records: list[dict[str, Any]]) -> dict[str, Any]:
             record["expected_result_met"]
             for record in records
         ]),
+        "declaration_reranking": {
+            "eligible_cases": sum(
+                record["reranking"]["eligible"] is True
+                for record in records
+            ),
+            "reordered_cases": sum(
+                record["reranking"]["changed"] is True
+                for record in records
+            ),
+            "raw_hit_at_1": metric([
+                record["reranking"]["raw_gold_rank"] == 1
+                for record in positive_records
+            ]),
+            "raw_hit_at_5": metric([
+                (
+                    record["reranking"]["raw_gold_rank"] is not None
+                    and record["reranking"]["raw_gold_rank"] <= 5
+                )
+                for record in positive_records
+            ]),
+        },
         "search_errors": search_error_count,
         "context_errors": context_error_count,
         "latency_ms": {
@@ -801,6 +874,67 @@ def repository_revisions(cases: list[dict[str, Any]]) -> dict[str, str | None]:
             revisions[repository] = None
 
     return revisions
+
+
+def configured_index_conditions(
+        cases: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Capture locally observable index conditions without guessing commits."""
+    repositories = sorted({
+        case["expected"]["repo"]
+        for case in cases
+    })
+    repository_names: dict[str, str | None] = {}
+
+    for repository in repositories:
+        try:
+            repository_root = get_repository_root(repository)
+            result = subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(repository_root),
+                    "config",
+                    "--get",
+                    "zoekt.name",
+                ],
+                capture_output=True,
+                check=False,
+                text=True,
+                timeout=5,
+            )
+            name = result.stdout.strip()
+            repository_names[repository] = (
+                name if result.returncode == 0 and name else None
+            )
+        except (OSError, subprocess.SubprocessError, ValueError):
+            repository_names[repository] = None
+
+    configured_server_commit = os.getenv("ZOEKT_SERVER_COMMIT")
+
+    return {
+        "zoekt_url": os.getenv("ZOEKT_URL", "http://localhost:6070"),
+        "repository_root_source": (
+            "REPOSITORY_ROOT"
+            if os.getenv("REPOSITORY_ROOT")
+            else "project_default"
+        ),
+        "repository_zoekt_names": repository_names,
+        "search_request_options": {
+            "NumContextLines": 0,
+            "TotalMaxMatchCount": "limit * 5",
+            "MaxDocDisplayCount": "limit",
+            "MaxMatchDisplayCount": "limit * 3",
+        },
+        "zoekt_server_commit": {
+            "value": configured_server_commit or None,
+            "status": (
+                "provided_by_environment"
+                if configured_server_commit
+                else "unconfirmed"
+            ),
+        },
+    }
 
 
 def print_case_result(
@@ -876,6 +1010,7 @@ def parse_args() -> argparse.Namespace:
 
 async def async_main() -> int:
     args = parse_args()
+    started_at = datetime.now(timezone.utc)
 
     cases_path = resolve_project_path(args.cases)
 
@@ -913,15 +1048,34 @@ async def async_main() -> int:
     summary = build_summary(records)
 
     report = {
-        "schema_version": 2,
+        "schema_version": 3,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "execution": {
+            "started_at": started_at.isoformat(),
+            "finished_at": datetime.now(timezone.utc).isoformat(),
+            "command": {
+                "python_executable": sys.executable,
+                "argv": [display_path(Path(sys.argv[0])), *sys.argv[1:]],
+                "pythonpath": os.getenv("PYTHONPATH"),
+            },
             "mode": "direct_python_tool_calls",
             "search_tool": "search_code",
             "context_tool": "get_file_context",
             "context_selection": "Top-1 search result",
             "case_execution": "sequential",
             "repository_revisions": repository_revisions(cases),
+            "index_conditions": configured_index_conditions(cases),
+            "post_ranking": {
+                "name": "declaration_context_stable_partition",
+                "eligibility": (
+                    "literal=true, no path filter, and ASCII bare identifier"
+                ),
+                "guarantees": [
+                    "Zoekt retrieval set and filters are unchanged",
+                    "each declaration and non-declaration partition keeps original order",
+                    "unavailable local source leaves a candidate unpromoted",
+                ],
+            },
             "latency_measurement": {
                 "clock": "time.perf_counter",
                 "search_wall": (
