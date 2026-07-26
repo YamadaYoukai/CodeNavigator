@@ -7,7 +7,12 @@ from pydantic import Field
 
 from src.config import get_repository_root
 from src.models import CodeSearchResponse, FileContext
-from src.services import ZoektClient, ZoektError, read_file_context
+from src.services import (
+    ZoektClient,
+    ZoektError,
+    prioritize_declaration_context,
+    read_file_context,
+)
 
 mcp = FastMCP(
     name="code-search-mcp",
@@ -75,7 +80,7 @@ async def search_code(
     不执行语义分析，也不保证命中就是定义。
     """
     try:
-        return await zoekt_client.search(
+        response = await zoekt_client.search(
             query=query,
             repo=repo,
             lang=lang,
@@ -83,6 +88,16 @@ async def search_code(
             limit=limit,
             literal=literal,
         )
+        raw_matches = list(response.matches)
+        response.matches = prioritize_declaration_context(
+            response.matches,
+            query=response.query,
+            path=path,
+            literal=literal,
+            resolve_repository_root=get_repository_root,
+        )
+        response._zoekt_matches = raw_matches
+        return response
     except (ValueError, ZoektError) as exc:
         raise ToolError(f"搜索失败：{exc}") from exc
 

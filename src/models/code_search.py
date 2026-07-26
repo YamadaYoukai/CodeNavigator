@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
 
 
 class CodeSearchRequest(BaseModel):
@@ -46,3 +46,6 @@ class CodeSearchResponse(BaseModel):
     query: str
     duration_ms: int = Field(ge=0)
     matches: list[CodeMatch]
+    # Kept only for direct in-process evaluation. Private attrs are excluded
+    # from the MCP response schema and JSON serialization.
+    _zoekt_matches: list[CodeMatch] | None = PrivateAttr(default=None)

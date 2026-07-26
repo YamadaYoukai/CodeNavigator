@@ -1,9 +1,11 @@
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 from mcp.server.fastmcp.exceptions import ToolError
 
-from src.models import CodeSearchResponse
+from src.models import CodeMatch, CodeSearchResponse
 from src.server import mcp, search_code, get_file_context
 
 
@@ -58,6 +60,63 @@ class SearchToolTest(unittest.IsolatedAsyncioTestCase):
 
         with self.assertRaisesRegex(ToolError, "搜索失败"):
             await search_code("UserService", limit=0)
+
+    @patch("src.server.zoekt_client.search", new_callable=AsyncMock)
+    async def test_search_preserves_raw_matches_while_stably_prioritizing_declaration(
+            self,
+            search: AsyncMock,
+    ):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            repository_root = Path(temporary_directory) / "click"
+            source_file = repository_root / "src/click/globals.py"
+            source_file.parent.mkdir(parents=True)
+            source_file.write_text(
+                "\n".join([
+                    "from .base import resolve_color_default",
+                    "def resolve_color_default() -> bool:",
+                    "    return True",
+                    "",
+                ]),
+                encoding="utf-8",
+            )
+            raw_matches = [
+                CodeMatch(
+                    repo="click",
+                    path="src/click/globals.py",
+                    line=1,
+                    snippet="from .base import resolve_color_default",
+                ),
+                CodeMatch(
+                    repo="click",
+                    path="src/click/globals.py",
+                    line=2,
+                    snippet="def resolve_color_default() -> bool:",
+                ),
+            ]
+            search.return_value = CodeSearchResponse(
+                query="resolve_color_default",
+                duration_ms=1,
+                matches=raw_matches,
+            )
+
+            with patch(
+                    "src.server.get_repository_root",
+                    return_value=repository_root,
+            ):
+                result = await search_code(
+                    "resolve_color_default",
+                    literal=True,
+                )
+
+        self.assertEqual(
+            [(item.path, item.line) for item in result.matches],
+            [
+                ("src/click/globals.py", 2),
+                ("src/click/globals.py", 1),
+            ],
+        )
+        self.assertEqual(result._zoekt_matches, raw_matches)
+        self.assertNotIn("_zoekt_matches", result.model_dump())
 
 
 class GetFileContextTest(unittest.TestCase):
