@@ -1,4 +1,4 @@
-# Code-understanding agent trace and tool router
+# Code-understanding agent trace, tool router, and Context Builder
 
 This package provides a small, in-memory event boundary for the agent harness
 and a dependency-injected router for its two code-retrieval tools. `TraceRecorder`
@@ -52,3 +52,40 @@ traces, or provide a plugin registry. Retrying can duplicate side effects and
 would obscure the one-call/one-result trace invariant. A fixed two-tool
 allowlist is preferable here because the agent workflow is deliberately narrow;
 adding another capability requires an explicit contract, adapter, and tests.
+
+## Context Builder contract
+
+`ContextBuilder.build(ContextState)` is an independently callable pure
+transformation. It does not invoke a model, a tool, a retry, a timeout, a loop,
+memory, persistence, RAG, or another agent. For the same `ContextState`, it
+returns the same `ModelInput` and leaves the supplied state unchanged.
+
+The model-facing payload has this fixed field order:
+
+1. `system_instruction`
+2. `current_task`
+3. `tool_schemas`
+4. `evidence`
+5. `remaining_tool_calls`
+
+`tool_schemas` always contains exactly these two router contracts in this
+order: `search_code`, then `get_file_context`. The schemas are derived from
+the existing Pydantic argument models and copied for each output, so a caller
+cannot alter the Builder's fixed allowlist through a prior result.
+
+`evidence_item_budget` is an input-only count of atomic evidence entries. It
+is intentionally not a token estimate and is separate from
+`remaining_tool_calls`; constructing context never consumes tool budget.
+
+### Decision: fact-first evidence trimming
+
+**Status:** accepted, 2026-07-29.
+
+When the evidence-item budget cannot fit every entry, the Builder keeps
+`fact` entries before `history` entries. Within the same tier, original input
+order is retained. Facts are verified observations such as a tool result or
+source location; history is prior narration or planning that can be recreated
+from the task. This gives the future model the strongest available grounding
+while dropping lower-value history first. Whole entries are selected rather
+than token-truncated, avoiding tokenizer/model coupling and preserving a
+deterministic, inspectable contract.
