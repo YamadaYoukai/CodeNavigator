@@ -1,9 +1,10 @@
-# Code-understanding agent trace, tool router, and Context Builder
+# Code-understanding agent boundaries
 
 This package provides a small, in-memory event boundary for the agent harness
-and a dependency-injected router for its two code-retrieval tools. `TraceRecorder`
-owns `task_id` and continuous sequence assignment; callers supply deterministic
-`elapsed_ms` values when they need them.
+and dependency-injected boundaries for context construction, model decisions,
+and its two code-retrieval tools. `TraceRecorder` owns `task_id` and continuous
+sequence assignment; callers supply deterministic `elapsed_ms` values when they
+need them.
 
 ## Router contract
 
@@ -52,6 +53,19 @@ traces, or provide a plugin registry. Retrying can duplicate side effects and
 would obscure the one-call/one-result trace invariant. A fixed two-tool
 allowlist is preferable here because the agent workflow is deliberately narrow;
 adding another capability requires an explicit contract, adapter, and tests.
+
+## Model boundary responsibilities
+
+`ModelClient` owns only the typed `ModelInput → ModelDecision` handoff. A
+decision is either one allowlisted retrieval-tool request or one structured
+final answer. For a tool request, `ToolCallDecision` selects the shared
+`SearchCodeArguments` or `GetFileContextArguments` contract by `tool_name` and
+validates the arguments before the decision can cross the model boundary.
+`ToolRouter` defensively repeats the same validation immediately before tool
+execution. The model boundary does not build context, execute tools, manage a
+loop, enforce budgets, retry, or persist state. `FakeModel` follows the same
+interface with a caller-supplied decision script and detached input snapshots,
+providing a network-free and clock-free test double.
 
 ## Context Builder contract
 

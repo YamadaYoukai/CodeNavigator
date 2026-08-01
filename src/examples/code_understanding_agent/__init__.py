@@ -10,6 +10,13 @@ from .context import (
     build_context,
 )
 from .events import FinalAnswer, Session, Step, ToolCall, ToolResult
+from .model_boundary import (
+    FakeModel,
+    FinalAnswerDecision,
+    ModelClient,
+    ModelDecision,
+    ToolCallDecision,
+)
 from .trace import TraceRecorder
 from .tool_router import (
     ALLOWED_TOOL_NAMES,
@@ -30,11 +37,15 @@ __all__ = [
     "ContextState",
     "Evidence",
     "EvidenceKind",
+    "FakeModel",
     "FinalAnswer",
+    "FinalAnswerDecision",
     "ALLOWED_TOOL_NAMES",
     "GET_FILE_CONTEXT",
     "GetFileContextArguments",
+    "ModelClient",
     "ModelInput",
+    "ModelDecision",
     "PydanticToolAdapter",
     "Router",
     "SEARCH_CODE",
@@ -43,6 +54,7 @@ __all__ = [
     "Step",
     "ToolDefinition",
     "ToolCall",
+    "ToolCallDecision",
     "ToolErrorCode",
     "ToolRouter",
     "ToolSchema",
