@@ -3,8 +3,8 @@
 This package provides a small, in-memory event boundary for the agent harness
 and dependency-injected boundaries for context construction, model decisions,
 and its two code-retrieval tools. `TraceRecorder` owns `task_id` and continuous
-sequence assignment; callers supply deterministic `elapsed_ms` values when they
-need them.
+sequence assignment. Most event timing remains caller-supplied;
+`TracedModelClient` is the one boundary that measures its wrapped model call.
 
 ## Router contract
 
@@ -66,6 +66,67 @@ execution. The model boundary does not build context, execute tools, manage a
 loop, enforce budgets, retry, or persist state. `FakeModel` follows the same
 interface with a caller-supplied decision script and detached input snapshots,
 providing a network-free and clock-free test double.
+
+### OpenAI adapter and trace wrapper
+
+`OpenAIModel` makes one injected Chat Completions call with `tool_choice="auto"`
+and `parallel_tool_calls=False`. Its tool definitions use strict function
+calling: every object rejects additional properties and every declared field is
+required. Fields that are optional in the router contract remain nullable; the
+model must still emit them. Pydantic defaults and titles are removed from the
+wire schema.
+
+A response crosses the boundary only when it contains exactly one allowlisted,
+validated tool call or JSON content that validates as `FinalAnswerDecision`.
+Provider/transport failures become `model_execution_error`; refusals, empty
+responses, malformed JSON, multiple or unknown tool calls, and invalid arguments
+become `invalid_model_output`. Neither error retains the provider exception or
+raw response.
+
+`TracedModelClient` is provider-independent and can wrap both `FakeModel` and
+`OpenAIModel`. It generates a local model `request_id`, appends a safe
+`ModelRequest`, delegates once, then appends exactly one correlated
+`ModelResult`. A successful result has a serialized decision and no error type;
+an error result has only its stable error type. Every model result also has a
+required non-negative `elapsed_ms`, measured with `time.perf_counter` around
+the wrapped `decide` call. This duration includes SDK transport and response
+validation for `OpenAIModel`, but excludes context construction and trace
+serialization. Tests inject a deterministic clock instead of asserting real
+wall-clock timing.
+
+The trace schema has no fields for API keys, request headers, base URLs, raw
+exceptions, or raw responses. The real-model smoke report repeats this as an
+executable redaction check: it compares the configured API key and base URL
+against the serialized trace and rejects forbidden transport/provider field
+names before writing evidence.
+
+Here, "safe" is limited to the provider/transport boundary. `ModelInput` and a
+validated decision are intentionally retained as task evidence, so this layer
+is not a general-purpose source-code or PII redactor. Callers must still apply
+their repository and data-classification policy before constructing context.
+
+### Adapter versus API proxy
+
+`OpenAIModel` is an application adapter, not a network proxy. It never reads
+credentials or endpoint configuration. The caller creates and injects an
+OpenAI SDK client, and therefore owns the API key, timeout, retry policy, and
+`base_url`. That URL may select the OpenAI endpoint or an explicitly trusted
+OpenAI-compatible gateway. A gateway must support Chat Completions function
+tools, strict JSON schemas, `tool_choice`, and `parallel_tool_calls`; transport
+compatibility is verified by the opt-in smoke run rather than assumed.
+
+When a private gateway must bypass workstation HTTP, HTTPS, or SOCKS proxies,
+the smoke runner's explicit `--no-proxy-base-url` option extracts only the
+configured URL hostname and appends it to both process-local `NO_PROXY` and
+`no_proxy`. It neither prints the hostname nor changes system proxy settings.
+The production caller remains responsible for making the equivalent transport
+choice before constructing its SDK client.
+
+Chat Completions is retained here as the narrow compatibility boundary for the
+configured gateway. OpenAI recommends the Responses API for new projects, but
+migrating API shape and gateway capability is deliberately outside this
+adapter-only change. Regardless of transport, neither endpoint/auth metadata
+nor provider-native payloads may cross into the trace.
 
 ## Context Builder contract
 

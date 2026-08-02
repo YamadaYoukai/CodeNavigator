@@ -9,7 +9,15 @@ from .context import (
     ToolSchema,
     build_context,
 )
-from .events import FinalAnswer, Session, Step, ToolCall, ToolResult
+from .events import (
+    FinalAnswer,
+    Session,
+    Step,
+    ToolCall,
+    ToolResult,
+    ModelRequest,
+    ModelResult,
+)
 from .model_boundary import (
     FakeModel,
     FinalAnswerDecision,
@@ -17,7 +25,14 @@ from .model_boundary import (
     ModelDecision,
     ToolCallDecision,
 )
+from .model_errors import (
+    InvalidModelOutputError,
+    ModelBoundaryError,
+    ModelExecutionError,
+)
+from .openai_model import OpenAIModel, build_messages, build_tools
 from .trace import TraceRecorder
+from .traced_model import TracedModelClient
 from .tool_router import (
     ALLOWED_TOOL_NAMES,
     GET_FILE_CONTEXT,
@@ -43,9 +58,15 @@ __all__ = [
     "ALLOWED_TOOL_NAMES",
     "GET_FILE_CONTEXT",
     "GetFileContextArguments",
+    "InvalidModelOutputError",
+    "ModelBoundaryError",
     "ModelClient",
+    "ModelExecutionError",
     "ModelInput",
     "ModelDecision",
+    "ModelRequest",
+    "ModelResult",
+    "OpenAIModel",
     "PydanticToolAdapter",
     "Router",
     "SEARCH_CODE",
@@ -61,5 +82,8 @@ __all__ = [
     "ToolResult",
     "ToolValidationError",
     "TraceRecorder",
+    "TracedModelClient",
     "build_context",
+    "build_messages",
+    "build_tools",
 ]

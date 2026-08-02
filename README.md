@@ -107,6 +107,42 @@ python -m pip install .
 python -m pip install -e ".[dev]"
 ```
 
+### 可选：真实模型决策冒烟
+
+`evaluation/run_model_smoke.py` 会通过 OpenAI Python SDK 请求一次模型决策，
+但不会执行模型返回的检索工具。它要求调用方显式提供
+`OPENAI_API_KEY`、`OPENAI_BASE_URL` 和 `OPENAI_MODEL`。建议将本地配置放在已被
+Git 忽略的 `.secrets/openai-smoke.env`，然后执行：
+
+```bash
+set -a
+source .secrets/openai-smoke.env
+set +a
+PYTHONPATH=. .venv/bin/python evaluation/run_model_smoke.py \
+  --no-proxy-base-url \
+  --out .artifacts/model-smoke.json
+```
+
+`OPENAI_BASE_URL` 是传输配置：既可以指向 OpenAI API，也可以指向受信任的
+OpenAI-compatible API 网关。`OpenAIModel` 本身只是应用内适配器，并不实现网络代理；
+网关需要兼容 Chat Completions 的 strict function tools、`tool_choice` 和
+`parallel_tool_calls`。远程环境应使用 TLS；仅在隔离且可信的本地/内网链路中接受明文
+HTTP，并由部署方承担该链路的安全控制。
+
+若机器设置了通用 HTTP、HTTPS 或 SOCKS 代理，而私有网关必须直连，可显式传入
+`--no-proxy-base-url`。脚本只在当前进程中把 `OPENAI_BASE_URL` 的主机追加到
+`NO_PROXY` 和 `no_proxy`，不会输出主机、修改系统代理或影响其他进程。
+
+模型 Trace 只保留模型名、不含传输元数据的 `ModelInput`、稳定决策/错误分类、关联 ID 和
+`elapsed_ms`。API Key、Base URL、请求头、原始异常和原始 Provider 响应均不进入
+Trace。冒烟脚本会在写报告前验证已配置的 Key/Base URL 不在序列化结果中，并输出
+`redaction_evidence`；任一检查失败都会终止执行，报告默认写入被 Git 忽略的
+`.artifacts/`。
+
+这里的脱敏边界只覆盖 Provider/传输元数据。`ModelInput`、业务证据和已校验决策会按
+设计保留，脚本不是通用源码或 PII 脱敏器；调用方仍需在构造上下文前执行自己的仓库权限
+与数据分级策略。
+
 ### 配置 Zoekt 地址
 
 默认连接 `http://localhost:6070`。如果 Zoekt 运行在其他地址，可以设置：

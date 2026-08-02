@@ -9,6 +9,8 @@ from uuid import uuid4
 
 from .events import (
     FinalAnswer,
+    ModelRequest,
+    ModelResult,
     NonTerminalEvent,
     RecordedEvent,
     Session,
@@ -55,7 +57,10 @@ class TraceRecorder:
             raise TypeError("event must be a trace event")
         if isinstance(event, FinalAnswer):
             raise ValueError("use finalize() to record a FinalAnswer")
-        if not isinstance(event, (Session, Step, ToolCall, ToolResult)):
+        if not isinstance(
+            event,
+            (Session, Step, ToolCall, ToolResult, ModelRequest, ModelResult),
+        ):
             raise TypeError("event must be one of the supported non-terminal events")
         return self._record(event)
 

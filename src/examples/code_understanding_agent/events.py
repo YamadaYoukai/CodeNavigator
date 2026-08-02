@@ -89,9 +89,49 @@ class FinalAnswer(TraceEvent):
     termination_reason: str = Field(min_length=1)
 
 
-RecordedEvent: TypeAlias = Session | Step | ToolCall | ToolResult | FinalAnswer
-NonTerminalEvent: TypeAlias = Session | Step | ToolCall | ToolResult
+class ModelRequest(TraceEvent):
+    """Records the safe, provider-independent input to one model call."""
 
+    event_type: Literal["model_request"] = "model_request"
+    request_id: str = Field(min_length=1)
+    model: str = Field(min_length=1)
+    model_input: dict[str, JsonValue]
+
+
+class ModelResult(TraceEvent):
+    """Records one validated decision or one stable failure category."""
+
+    event_type: Literal["model_result"] = "model_result"
+    elapsed_ms: int = Field(ge=0)
+    request_id: str = Field(min_length=1)
+    status: Literal["success", "error"]
+    decision: dict[str, JsonValue] | None = None
+    error_type: Literal[
+        "model_execution_error",
+        "invalid_model_output",
+    ] | None = None
+
+    @model_validator(mode="after")
+    def validate_outcome(self) -> "ModelResult":
+        if self.status == "success":
+            if self.decision is None:
+                raise ValueError("successful model result must include decision")
+            if self.error_type is not None:
+                raise ValueError("successful model result cannot include error_type")
+        else:
+            if self.error_type is None:
+                raise ValueError("error model result must include error_type")
+            if self.decision is not None:
+                raise ValueError("error model result cannot include decision")
+        return self
+
+
+RecordedEvent: TypeAlias = (
+    Session | Step | ToolCall | ToolResult | FinalAnswer | ModelRequest | ModelResult
+)
+NonTerminalEvent: TypeAlias = (
+    Session | Step | ToolCall | ToolResult | ModelRequest | ModelResult
+)
 
 EVENT_MODELS: dict[str, type[TraceEvent]] = {
     "session": Session,
@@ -99,6 +139,8 @@ EVENT_MODELS: dict[str, type[TraceEvent]] = {
     "tool_call": ToolCall,
     "tool_result": ToolResult,
     "final_answer": FinalAnswer,
+    "model_request": ModelRequest,
+    "model_result": ModelResult,
 }
 
 
