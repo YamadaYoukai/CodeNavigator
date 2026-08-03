@@ -12,13 +12,14 @@ from src.examples.code_understanding_agent import (
     ModelRequest,
     ModelResult,
     OpenAIModel,
+    RepositoryHint,
     SearchCodeArguments,
     ToolCallDecision,
     TraceRecorder,
     TracedModelClient,
     build_context,
 )
-from src.examples.code_understanding_agent.openai_model import build_tools
+from src.examples.code_understanding_agent.openai_model import build_messages, build_tools
 
 
 class FakeCompletions:
@@ -47,6 +48,12 @@ def build_model_input():
         ContextState(
             system_instruction="Answer only from supplied code evidence.",
             current_task="Where is make_context implemented?",
+            repository_hints=(
+                RepositoryHint(
+                    canonical_name="click",
+                    aliases=("Click", "pallets/click"),
+                ),
+            ),
             evidence=(),
             evidence_item_budget=4,
             remaining_tool_calls=1,
@@ -94,6 +101,19 @@ def test_build_tools_converts_defaulted_pydantic_schemas_to_strict_tools() -> No
         assert parameters["additionalProperties"] is False
         assert parameters["required"] == list(parameters["properties"])
         assert "default" not in json.dumps(parameters)
+
+
+def test_build_messages_supplies_closed_world_repository_names() -> None:
+    system_message, user_message = build_messages(build_model_input())
+    user_payload = json.loads(user_message["content"])
+
+    assert "Never invent" in system_message["content"]
+    assert user_payload["repository_hints"] == [
+        {
+            "canonical_name": "click",
+            "aliases": ["Click", "pallets/click"],
+        }
+    ]
 
 
 def test_valid_search_code_response_becomes_tool_call_decision() -> None:

@@ -26,6 +26,13 @@ records the matching `ToolResult`. The result always retains the original
 `call_id`, so a trace has a deterministic `ToolCall → ToolResult` sequence even
 for rejected or failed calls.
 
+Callers may inject a `ToolCallResolver`. Resolution happens before the
+executable `ToolCall` is recorded. `RepositoryAliasResolver` uses only exact
+configured names: canonical names pass through, configured aliases become one
+canonical indexed name, and no case, basename, URL, suffix, or fuzzy fallback
+is attempted. The preceding `ModelResult` therefore retains the model's raw
+decision while the `ToolCall` records the arguments actually sent to the tool.
+
 ## Error classification
 
 Only the following router error codes are emitted in a `ToolResult.error_type`:
@@ -33,6 +40,8 @@ Only the following router error codes are emitted in a `ToolResult.error_type`:
 | Error code | Condition |
 | --- | --- |
 | `unknown_tool` | The call's `tool_name` is not one of the two contract names. |
+| `unknown_repository` | A model supplied a repository name absent from the configured canonical names and exact aliases. |
+| `ambiguous_repository` | One configured alias refers to more than one canonical repository. |
 | `invalid_arguments` | The injected adapter rejects caller-supplied arguments. |
 | `tool_execution_error` | Adapter validation unexpectedly fails, invocation fails, or its result cannot be normalized to a non-null JSON value. |
 
@@ -139,9 +148,17 @@ The model-facing payload has this fixed field order:
 
 1. `system_instruction`
 2. `current_task`
-3. `tool_schemas`
-4. `evidence`
-5. `remaining_tool_calls`
+3. `repository_hints`
+4. `tool_schemas`
+5. `evidence`
+6. `remaining_tool_calls`
+
+Each `repository_hints` item contains one `canonical_name` and zero or more
+exact aliases. The model must emit only a matching canonical name. For
+`search_code`, it emits `repo=null` when no hint applies rather than inventing
+a GitHub owner/repository path. For `get_file_context`, it reuses the canonical
+name returned by search or supplied by a hint. Alias resolution is repeated at
+the execution boundary as defense in depth.
 
 `tool_schemas` always contains exactly these two router contracts in this
 order: `search_code`, then `get_file_context`. The schemas are derived from

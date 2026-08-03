@@ -139,6 +139,13 @@ Trace。冒烟脚本会在写报告前验证已配置的 Key/Base URL 不在序�
 `redaction_evidence`；任一检查失败都会终止执行，报告默认写入被 Git 忽略的
 `.artifacts/`。
 
+该 Click 冒烟会把规范索引名 `click` 及
+`Click`、`pallets/click`、`github.com/pallets/click` 三个精确别名作为
+`repository_hints` 提供给模型，并断言模型最终输出 `repo="click"`。Agent 执行层还会
+通过 `RepositoryAliasResolver` 做第二次精确解析：原始别名保留在 `ModelResult`，真正
+执行的规范名记录在 `ToolCall`；未知或冲突别名分别返回 `unknown_repository` 或
+`ambiguous_repository`，不会再表现为成功的空搜索。
+
 这里的脱敏边界只覆盖 Provider/传输元数据。`ModelInput`、业务证据和已校验决策会按
 设计保留，脚本不是通用源码或 PII 脱敏器；调用方仍需在构造上下文前执行自己的仓库权限
 与数据分级策略。

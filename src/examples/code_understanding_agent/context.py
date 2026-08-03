@@ -42,6 +42,28 @@ class Evidence(BaseModel):
     content: str = Field(min_length=1)
 
 
+class RepositoryHint(BaseModel):
+    """One canonical indexed repository name and its exact external aliases."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    canonical_name: str = Field(min_length=1)
+    aliases: tuple[str, ...] = Field(default_factory=tuple)
+
+    @model_validator(mode="after")
+    def validate_names(self) -> "RepositoryHint":
+        if (
+            not self.canonical_name.strip()
+            or self.canonical_name != self.canonical_name.strip()
+        ):
+            raise ValueError("canonical repository name must be trimmed and non-empty")
+        if any(not alias.strip() or alias != alias.strip() for alias in self.aliases):
+            raise ValueError("repository aliases must be trimmed non-empty strings")
+        if len(set(self.aliases)) != len(self.aliases):
+            raise ValueError("repository aliases must be unique within one hint")
+        return self
+
+
 class ContextState(BaseModel):
     """All caller-owned inputs needed to build one deterministic payload.
 
@@ -54,9 +76,19 @@ class ContextState(BaseModel):
 
     system_instruction: str = Field(min_length=1)
     current_task: str = Field(min_length=1)
+    repository_hints: tuple[RepositoryHint, ...] = Field(default_factory=tuple)
     evidence: tuple[Evidence, ...] = Field(default_factory=tuple)
     evidence_item_budget: int = Field(ge=0)
     remaining_tool_calls: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def validate_repository_hints(self) -> "ContextState":
+        repository_names = tuple(
+            hint.canonical_name for hint in self.repository_hints
+        )
+        if len(set(repository_names)) != len(repository_names):
+            raise ValueError("repository_hints must have unique canonical names")
+        return self
 
 
 class ToolSchema(BaseModel):
@@ -80,12 +112,19 @@ class ModelInput(BaseModel):
 
     system_instruction: str = Field(min_length=1)
     current_task: str = Field(min_length=1)
+    repository_hints: tuple[RepositoryHint, ...]
     tool_schemas: tuple[ToolSchema, ...]
     evidence: tuple[Evidence, ...]
     remaining_tool_calls: int = Field(ge=0)
 
     @model_validator(mode="after")
     def validate_tool_allowlist(self) -> "ModelInput":
+        repository_names = tuple(
+            hint.canonical_name for hint in self.repository_hints
+        )
+        if len(set(repository_names)) != len(repository_names):
+            raise ValueError("repository_hints must have unique canonical names")
+
         names = tuple(schema.name for schema in self.tool_schemas)
         expected_names = (SEARCH_CODE, GET_FILE_CONTEXT)
         if names != expected_names:
@@ -166,6 +205,9 @@ class ContextBuilder:
         return ModelInput(
             system_instruction=state.system_instruction,
             current_task=state.current_task,
+            repository_hints=tuple(
+                hint.model_copy(deep=True) for hint in state.repository_hints
+            ),
             tool_schemas=tuple(
                 schema.model_copy(deep=True) for schema in _TOOL_SCHEMAS
             ),

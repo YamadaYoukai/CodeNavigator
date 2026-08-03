@@ -12,7 +12,15 @@ from collections.abc import Awaitable, Callable, Mapping
 from enum import Enum
 from typing import Protocol, cast
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter, ValidationError
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    JsonValue,
+    TypeAdapter,
+    ValidationError,
+    field_validator,
+)
 
 from .events import ToolCall, ToolResult
 from .trace import TraceRecorder
@@ -27,6 +35,8 @@ class ToolErrorCode(str, Enum):
     """Stable error codes emitted by the router."""
 
     UNKNOWN_TOOL = "unknown_tool"
+    UNKNOWN_REPOSITORY = "unknown_repository"
+    AMBIGUOUS_REPOSITORY = "ambiguous_repository"
     INVALID_ARGUMENTS = "invalid_arguments"
     TOOL_EXECUTION_ERROR = "tool_execution_error"
 
@@ -37,11 +47,24 @@ class SearchCodeArguments(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     query: str = Field(min_length=1)
-    repo: str | None = None
+    repo: str | None = Field(
+        default=None,
+        description=(
+            "Exact canonical indexed repository name from repository_hints; "
+            "use null when no supplied hint applies and never invent a name."
+        ),
+    )
     lang: str | None = None
     path: str | None = None
     limit: int = Field(default=20, ge=1, le=100)
     literal: bool = False
+
+    @field_validator("repo")
+    @classmethod
+    def validate_repository_name(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            raise ValueError("repo must be non-blank when supplied")
+        return value
 
 
 class GetFileContextArguments(BaseModel):
@@ -49,15 +72,49 @@ class GetFileContextArguments(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    repository: str = Field(min_length=1)
+    repository: str = Field(
+        min_length=1,
+        description=(
+            "Canonical repository name returned by search_code or supplied in "
+            "repository_hints; never invent or rewrite it."
+        ),
+    )
     file_path: str = Field(min_length=1)
     line_number: int = Field(ge=1)
     lines_before: int = Field(default=20, ge=0, le=100)
     lines_after: int = Field(default=20, ge=0, le=100)
 
+    @field_validator("repository")
+    @classmethod
+    def validate_repository_name(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("repository must be non-blank")
+        return value
+
 
 class ToolValidationError(ValueError):
     """Signals that an adapter rejected caller-supplied tool arguments."""
+
+
+class ToolCallResolutionError(ValueError):
+    """Reject a pre-execution call with one stable router error code."""
+
+    def __init__(self, error_code: ToolErrorCode) -> None:
+        if error_code not in {
+            ToolErrorCode.UNKNOWN_REPOSITORY,
+            ToolErrorCode.AMBIGUOUS_REPOSITORY,
+        }:
+            raise ValueError("unsupported tool call resolution error code")
+        self.error_code = error_code
+        super().__init__(error_code.value)
+
+
+class ToolCallResolver(Protocol):
+    """Resolve model-facing arguments before the executed call is traced."""
+
+    def resolve(self, call: ToolCall) -> ToolCall:
+        """Return an executable call or raise ToolCallResolutionError."""
+        ...
 
 
 class ToolDefinition(Protocol):
@@ -115,6 +172,7 @@ class ToolRouter:
         *,
         trace: TraceRecorder,
         tools: Mapping[str, ToolDefinition],
+        call_resolver: ToolCallResolver | None = None,
     ) -> None:
         if set(tools) != ALLOWED_TOOL_NAMES:
             raise ValueError(
@@ -123,21 +181,35 @@ class ToolRouter:
 
         self._trace = trace
         self._tools = dict(tools)
+        self._call_resolver = call_resolver
 
     async def execute(self, call: ToolCall) -> ToolResult:
         """Record and execute one call, returning its normalized trace result."""
 
-        self._trace.append(call)
-        tool = self._tools.get(call.tool_name)
+        executable_call, resolution_error = self._resolve_call(call)
+        self._trace.append(executable_call)
+        if resolution_error is not None:
+            return self._record_error(call.call_id, resolution_error)
+
+        tool = self._tools.get(executable_call.tool_name)
         if tool is None:
-            return self._record_error(call.call_id, ToolErrorCode.UNKNOWN_TOOL)
+            return self._record_error(
+                executable_call.call_id,
+                ToolErrorCode.UNKNOWN_TOOL,
+            )
 
         try:
-            arguments = tool.validate(call.arguments)
+            arguments = tool.validate(executable_call.arguments)
         except (ToolValidationError, ValidationError):
-            return self._record_error(call.call_id, ToolErrorCode.INVALID_ARGUMENTS)
+            return self._record_error(
+                executable_call.call_id,
+                ToolErrorCode.INVALID_ARGUMENTS,
+            )
         except Exception:
-            return self._record_error(call.call_id, ToolErrorCode.TOOL_EXECUTION_ERROR)
+            return self._record_error(
+                executable_call.call_id,
+                ToolErrorCode.TOOL_EXECUTION_ERROR,
+            )
 
         try:
             outcome = tool.invoke(arguments)
@@ -145,9 +217,37 @@ class ToolRouter:
                 outcome = await outcome
             result = _normalize_result(outcome)
         except Exception:
-            return self._record_error(call.call_id, ToolErrorCode.TOOL_EXECUTION_ERROR)
+            return self._record_error(
+                executable_call.call_id,
+                ToolErrorCode.TOOL_EXECUTION_ERROR,
+            )
 
-        return self._record_success(call.call_id, result)
+        return self._record_success(executable_call.call_id, result)
+
+    def _resolve_call(
+        self,
+        call: ToolCall,
+    ) -> tuple[ToolCall, ToolErrorCode | None]:
+        if self._call_resolver is None:
+            return call.model_copy(deep=True), None
+
+        try:
+            resolved = self._call_resolver.resolve(call.model_copy(deep=True))
+        except ToolCallResolutionError as exc:
+            return call.model_copy(deep=True), exc.error_code
+        except Exception:
+            return call.model_copy(deep=True), ToolErrorCode.TOOL_EXECUTION_ERROR
+
+        if not isinstance(resolved, ToolCall):
+            return call.model_copy(deep=True), ToolErrorCode.TOOL_EXECUTION_ERROR
+        if (
+            resolved.call_id != call.call_id
+            or resolved.tool_name != call.tool_name
+            or resolved.task_id is not None
+            or resolved.sequence is not None
+        ):
+            return call.model_copy(deep=True), ToolErrorCode.TOOL_EXECUTION_ERROR
+        return resolved.model_copy(deep=True), None
 
     def _record_success(self, call_id: str, result: JsonValue) -> ToolResult:
         return self._record_result(

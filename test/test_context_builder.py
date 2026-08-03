@@ -1,3 +1,6 @@
+import pytest
+from pydantic import ValidationError
+
 from src.examples.code_understanding_agent import (
     GET_FILE_CONTEXT,
     SEARCH_CODE,
@@ -5,6 +8,7 @@ from src.examples.code_understanding_agent import (
     ContextState,
     Evidence,
     EvidenceKind,
+    RepositoryHint,
     build_context,
 )
 
@@ -13,6 +17,12 @@ def build_state(**overrides: object) -> ContextState:
     payload: dict[str, object] = {
         "system_instruction": "Answer only from the supplied code evidence.",
         "current_task": "Locate the retry policy.",
+        "repository_hints": (
+            RepositoryHint(
+                canonical_name="retry-service",
+                aliases=("example/retry-service",),
+            ),
+        ),
         "evidence": (
             Evidence(
                 kind=EvidenceKind.FACT,
@@ -34,12 +44,19 @@ def test_should_include_every_required_contract_field_when_building_full_context
     assert list(payload) == [
         "system_instruction",
         "current_task",
+        "repository_hints",
         "tool_schemas",
         "evidence",
         "remaining_tool_calls",
     ]
     assert payload["system_instruction"] == "Answer only from the supplied code evidence."
     assert payload["current_task"] == "Locate the retry policy."
+    assert payload["repository_hints"] == [
+        {
+            "canonical_name": "retry-service",
+            "aliases": ["example/retry-service"],
+        }
+    ]
     assert [schema["name"] for schema in payload["tool_schemas"]] == [
         SEARCH_CODE,
         GET_FILE_CONTEXT,
@@ -124,9 +141,38 @@ def test_should_keep_output_order_and_input_state_stable_for_identical_state() -
         SEARCH_CODE,
         GET_FILE_CONTEXT,
     ]
+    assert first.repository_hints == state.repository_hints
+    assert first.repository_hints[0] is not state.repository_hints[0]
     assert [item.kind for item in first.evidence] == [
         EvidenceKind.FACT,
         EvidenceKind.FACT,
         EvidenceKind.HISTORY,
     ]
     assert state.model_dump(mode="json") == original_state
+
+
+def test_should_reject_duplicate_canonical_repository_names() -> None:
+    with pytest.raises(ValidationError, match="unique canonical names"):
+        build_state(
+            repository_hints=(
+                RepositoryHint(canonical_name="click"),
+                RepositoryHint(canonical_name="click", aliases=("pallets/click",)),
+            )
+        )
+
+
+@pytest.mark.parametrize(
+    "aliases",
+    [("",), (" pallets/click",), ("pallets/click", "pallets/click")],
+)
+def test_should_reject_empty_or_duplicate_aliases(aliases: tuple[str, ...]) -> None:
+    with pytest.raises(ValidationError, match="repository aliases"):
+        RepositoryHint(canonical_name="click", aliases=aliases)
+
+
+@pytest.mark.parametrize("canonical_name", ["", " ", " click", "click "])
+def test_should_reject_invalid_canonical_repository_name(
+    canonical_name: str,
+) -> None:
+    with pytest.raises(ValidationError):
+        RepositoryHint(canonical_name=canonical_name)

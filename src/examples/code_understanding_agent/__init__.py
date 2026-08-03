@@ -6,17 +6,18 @@ from .context import (
     Evidence,
     EvidenceKind,
     ModelInput,
+    RepositoryHint,
     ToolSchema,
     build_context,
 )
 from .events import (
     FinalAnswer,
+    ModelRequest,
+    ModelResult,
     Session,
     Step,
     ToolCall,
     ToolResult,
-    ModelRequest,
-    ModelResult,
 )
 from .model_boundary import (
     FakeModel,
@@ -31,6 +32,7 @@ from .model_errors import (
     ModelExecutionError,
 )
 from .openai_model import OpenAIModel, build_messages, build_tools
+from .repository_resolver import RepositoryAliasResolver
 from .trace import TraceRecorder
 from .traced_model import TracedModelClient
 from .tool_router import (
@@ -41,6 +43,8 @@ from .tool_router import (
     PydanticToolAdapter,
     Router,
     SearchCodeArguments,
+    ToolCallResolutionError,
+    ToolCallResolver,
     ToolDefinition,
     ToolErrorCode,
     ToolRouter,
@@ -68,14 +72,18 @@ __all__ = [
     "ModelResult",
     "OpenAIModel",
     "PydanticToolAdapter",
+    "RepositoryAliasResolver",
+    "RepositoryHint",
     "Router",
     "SEARCH_CODE",
     "SearchCodeArguments",
     "Session",
     "Step",
-    "ToolDefinition",
+    "ToolCallResolutionError",
+    "ToolCallResolver",
     "ToolCall",
     "ToolCallDecision",
+    "ToolDefinition",
     "ToolErrorCode",
     "ToolRouter",
     "ToolSchema",

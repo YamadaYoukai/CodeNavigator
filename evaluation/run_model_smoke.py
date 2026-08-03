@@ -16,6 +16,7 @@ from src.examples.code_understanding_agent import (
     ContextState,
     ModelRequest,
     ModelResult,
+    RepositoryHint,
     SEARCH_CODE,
     SearchCodeArguments,
     Session,
@@ -126,6 +127,16 @@ def main() -> None:
             "Where is make_context implemented in Click, "
             "and what does it do?"
         ),
+        repository_hints=(
+            RepositoryHint(
+                canonical_name="click",
+                aliases=(
+                    "Click",
+                    "pallets/click",
+                    "github.com/pallets/click",
+                ),
+            ),
+        ),
         evidence=(),
         evidence_item_budget=4,
         remaining_tool_calls=1,
@@ -161,7 +172,8 @@ def main() -> None:
 
     assert isinstance(decision, ToolCallDecision)
     assert decision.tool_name == SEARCH_CODE
-    SearchCodeArguments.model_validate(decision.arguments)
+    search_arguments = SearchCodeArguments.model_validate(decision.arguments)
+    assert search_arguments.repo == "click"
     assert [event.event_type for event in trace.events] == [
         "session",
         "step",

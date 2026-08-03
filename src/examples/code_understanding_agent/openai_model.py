@@ -27,6 +27,11 @@ from .tool_router import ALLOWED_TOOL_NAMES
 _DECISION_PROTOCOL = """Return exactly one decision.
 When retrieval is needed and remaining_tool_calls is positive, call exactly one
 available retrieval tool. Never emit more than one tool call.
+Repository names are closed-world identifiers. For search_code, set repo only
+to an exact repository_hints[].canonical_name whose name or alias applies; when
+no supplied hint applies, set repo to null. Never invent, expand, or rewrite a
+repository name. For get_file_context, use only a canonical repository name
+returned by search_code or supplied in repository_hints.
 When answering without a tool call, return only a JSON object matching:
 {"decision_type":"final_answer","answer":"non-empty answer",\
 "evidence":["source references"],"uncertainties":[],"next_queries":[]}
@@ -41,6 +46,9 @@ def build_messages(model_input: ModelInput) -> list[dict[str, str]]:
 
     user_payload = {
         "current_task": model_input.current_task,
+        "repository_hints": [
+            hint.model_dump(mode="json") for hint in model_input.repository_hints
+        ],
         "evidence": [
             evidence.model_dump(mode="json") for evidence in model_input.evidence
         ],
