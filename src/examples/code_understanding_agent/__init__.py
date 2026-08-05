@@ -35,6 +35,11 @@ from .openai_model import OpenAIModel, build_messages, build_tools
 from .repository_resolver import RepositoryAliasResolver
 from .trace import TraceRecorder
 from .traced_model import TracedModelClient
+from .tool_step import (
+    ToolCallExecutor,
+    ToolStepExecutor,
+    ToolStepOutcome,
+)
 from .tool_router import (
     ALLOWED_TOOL_NAMES,
     GET_FILE_CONTEXT,
@@ -83,10 +88,13 @@ __all__ = [
     "ToolCallResolver",
     "ToolCall",
     "ToolCallDecision",
+    "ToolCallExecutor",
     "ToolDefinition",
     "ToolErrorCode",
     "ToolRouter",
     "ToolSchema",
+    "ToolStepExecutor",
+    "ToolStepOutcome",
     "ToolResult",
     "ToolValidationError",
     "TraceRecorder",

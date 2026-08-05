@@ -63,6 +63,47 @@ would obscure the one-call/one-result trace invariant. A fixed two-tool
 allowlist is preferable here because the agent workflow is deliberately narrow;
 adding another capability requires an explicit contract, adapter, and tests.
 
+## Single tool-step transition
+
+`ToolStepExecutor` is the provider-independent boundary between one validated
+`ToolCallDecision` and the next model input. It performs exactly this
+transition:
+
+```text
+ContextState + ToolCallDecision
+  -> ToolCall -> ToolRouter.execute -> ToolResult
+  -> next ContextState -> next ModelInput
+```
+
+When `remaining_tool_calls` is zero, the executor does not call the router or
+an adapter, appends no trace events, returns no `ToolResult`, reuses the input
+state unchanged, and builds the next input with the unchanged zero budget.
+Otherwise, one attempted call consumes exactly one unit whether it succeeds,
+is rejected during repository resolution, or returns a classified execution
+failure. The executor does not retry.
+
+Every call that reaches the router appends `ToolCall` and then its correlated
+`ToolResult`, for both success and classified failure. After successful alias
+resolution, the `ToolCall` contains the canonical repository name used by the
+adapter while the caller's `ToolCallDecision` retains the model's original
+alias. If resolution rejects the repository, no executable call exists, so the
+recorded `ToolCall` retains the unresolved arguments before the error result.
+
+The result becomes one `fact` evidence item. Successful evidence contains only
+the normalized JSON result and status; failed evidence contains only the stable
+router error classification and status. Raw exception text is neither copied
+to state nor supplied to the next model input. The caller-owned state and
+decision are never mutated.
+
+Fresh tool evidence is placed before older evidence and is the only item
+protected while the immediately following `ModelInput` is built. A protected
+item must already exist in the next `ContextState`; at most one item can be
+protected. It consumes the normal item budget first, but is retained even when
+that budget is zero. This narrow override prevents the one completed tool call
+from becoming invisible to the next model decision without providing a general
+priority mechanism or an unbounded way around the evidence budget. Ordinary
+standalone context builds keep the existing fact-first hard trimming behavior.
+
 ## Model boundary responsibilities
 
 `ModelClient` owns only the typed `ModelInput → ModelDecision` handoff. A
@@ -168,6 +209,8 @@ cannot alter the Builder's fixed allowlist through a prior result.
 `evidence_item_budget` is an input-only count of atomic evidence entries. It
 is intentionally not a token estimate and is separate from
 `remaining_tool_calls`; constructing context never consumes tool budget.
+The single tool-step transition may protect its one newly produced fact for the
+immediately following model input, as described above.
 
 ### Decision: fact-first evidence trimming
 

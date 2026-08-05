@@ -8,6 +8,7 @@ timeout, retry, memory, or persistence policy.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from enum import Enum
 from typing import Any, Literal
 
@@ -188,19 +189,23 @@ class ContextBuilder:
     untouched.
     """
 
-    def build(self, state: ContextState) -> ModelInput:
-        """Build one model input without invoking tools or external services."""
+    def build(
+        self,
+        state: ContextState,
+        *,
+        protected_evidence: Iterable[Evidence] = (),
+    ) -> ModelInput:
+        """Build one model input without invoking tools or external services.
 
-        selected_evidence = tuple(
-            evidence
-            for _, evidence in sorted(
-                enumerate(state.evidence),
-                key=lambda indexed: (
-                    _EVIDENCE_PRIORITY[indexed[1].kind],
-                    indexed[0],
-                ),
-            )[: state.evidence_item_budget]
-        )
+        ``protected_evidence`` is a narrow escape hatch for fresh observations
+        that must reach the immediately following model call. At most one item
+        may be protected, and it must already occur in ``state.evidence``. The
+        protected item consumes the ordinary evidence budget first, but is
+        still retained when that budget is zero so a just-produced tool result
+        cannot disappear at the state-to-model boundary.
+        """
+
+        selected_evidence = self._select_evidence(state, protected_evidence)
 
         return ModelInput(
             system_instruction=state.system_instruction,
@@ -214,6 +219,50 @@ class ContextBuilder:
             evidence=selected_evidence,
             remaining_tool_calls=state.remaining_tool_calls,
         )
+
+    @staticmethod
+    def _select_evidence(
+        state: ContextState,
+        protected_evidence: Iterable[Evidence],
+    ) -> tuple[Evidence, ...]:
+        protected_items = tuple(protected_evidence)
+        if not all(isinstance(item, Evidence) for item in protected_items):
+            raise TypeError("protected_evidence must contain Evidence instances")
+        if len(protected_items) > 1:
+            raise ValueError("at most one protected evidence item is allowed")
+
+        unmatched_indexes = list(range(len(state.evidence)))
+        protected_indexes: list[int] = []
+        for protected_item in protected_items:
+            matching_index = next(
+                (
+                    index
+                    for index in unmatched_indexes
+                    if state.evidence[index] == protected_item
+                ),
+                None,
+            )
+            if matching_index is None:
+                raise ValueError("protected evidence must already occur in state")
+            protected_indexes.append(matching_index)
+            unmatched_indexes.remove(matching_index)
+
+        ranked_indexes = sorted(
+            unmatched_indexes,
+            key=lambda index: (
+                _EVIDENCE_PRIORITY[state.evidence[index].kind],
+                index,
+            ),
+        )
+        remaining_capacity = max(
+            state.evidence_item_budget - len(protected_indexes),
+            0,
+        )
+        selected_indexes = (
+            *protected_indexes,
+            *ranked_indexes[:remaining_capacity],
+        )
+        return tuple(state.evidence[index] for index in selected_indexes)
 
 
 def build_context(state: ContextState) -> ModelInput:

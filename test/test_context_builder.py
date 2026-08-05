@@ -151,6 +151,44 @@ def test_should_keep_output_order_and_input_state_stable_for_identical_state() -
     assert state.model_dump(mode="json") == original_state
 
 
+def test_should_reject_protected_evidence_absent_from_state() -> None:
+    state = build_state(evidence_item_budget=0)
+    absent_evidence = Evidence(
+        kind=EvidenceKind.FACT,
+        source="tool_result:search_code:absent",
+        content='{"result":{"matches":[]},"status":"success"}',
+    )
+
+    with pytest.raises(ValueError, match="must already occur in state"):
+        ContextBuilder().build(
+            state,
+            protected_evidence=(absent_evidence,),
+        )
+
+
+def test_should_reject_more_than_one_protected_evidence() -> None:
+    first = Evidence(
+        kind=EvidenceKind.FACT,
+        source="tool_result:search_code:first",
+        content='{"result":{"matches":[]},"status":"success"}',
+    )
+    second = Evidence(
+        kind=EvidenceKind.FACT,
+        source="tool_result:search_code:second",
+        content='{"result":{"matches":[]},"status":"success"}',
+    )
+    state = build_state(
+        evidence=(first, second),
+        evidence_item_budget=0,
+    )
+
+    with pytest.raises(ValueError, match="at most one protected evidence"):
+        ContextBuilder().build(
+            state,
+            protected_evidence=(first, second),
+        )
+
+
 def test_should_reject_duplicate_canonical_repository_names() -> None:
     with pytest.raises(ValidationError, match="unique canonical names"):
         build_state(
