@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "context_state": {
+    "system_instruction": "Answer only from supplied code evidence...",
+    "current_task": "Where is make_context implemented in Click, and what does it do?",
+    "repository_hints": [
+      {
+        "canonical_name": "click",
+        "aliases": ["pallets/click"]
+      }
+    ],
+    "evidence": [],
+    "evidence_item_budget": 4,
+    "remaining_tool_calls": 1
+  },
+  "decision": {
+    "decision_type": "tool_call",
+    "call_id": "public-click-search-1",
+    "tool_name": "search_code",
+    "arguments": {
+      "query": "def make_context",
+      "repo": "pallets/click",
+      "lang": "python",
+      "path": null,
+      "limit": 20,
+      "literal": true
+    }
+  }
+}

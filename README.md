@@ -150,6 +150,14 @@ Trace。冒烟脚本会在写报告前验证已配置的 Key/Base URL 不在序�
 设计保留，脚本不是通用源码或 PII 脱敏器；调用方仍需在构造上下文前执行自己的仓库权限
 与数据分级策略。
 
+### Replay a persisted model decision
+
+无需再次请求模型，即可用[公开脱敏 fixture](evaluation/fixtures/real-model-decision-click-replay.json)
+和[单步重放 runner](evaluation/replay_tool_step.py)复现一次真实决策的
+`ToolCall → ToolResult → 下一份 ModelInput`。准备好固定 Click 8.4.1 checkout 与 Zoekt
+索引后，按[真实 Tool 证据](docs/evidence/2026-08-07-real-model-result-search-tool.md)中的命令
+运行；该入口不读取模型凭据，也不重新生成原始模型 Trace。
+
 ### 配置 Zoekt 地址
 
 默认连接 `http://localhost:6070`。如果 Zoekt 运行在其他地址，可以设置：
