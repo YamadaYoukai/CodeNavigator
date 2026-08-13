@@ -6,6 +6,67 @@ and its two code-retrieval tools. `TraceRecorder` owns `task_id` and continuous
 sequence assignment. Most event timing remains caller-supplied;
 `TracedModelClient` is the one boundary that measures its wrapped model call.
 
+## Agent loop contract
+
+`AgentLoop` is the smallest successful-path orchestration layer over the
+existing boundaries. Its caller supplies one immutable initial `ContextState`
+and injects a `ContextBuilder`, `ModelClient` (normally a
+`TracedModelClient`), `ToolStepExecutor`, and the single `TraceRecorder` shared
+by the traced model and tool router. The recorder must be empty and
+unfinalized when `run` starts. The asynchronous result contains the recorded
+`FinalAnswer`, a detached final `ContextState`, and the number of attempted
+tool calls; the caller-owned initial state and injected decision objects remain
+unchanged.
+
+The per-task tool-call hard limit is six. At startup the loop copies the input
+state and sets its effective remaining budget to
+`min(initial remaining_tool_calls, 6)`, so a larger caller value cannot weaken
+the limit. Each `ToolCallDecision` is delegated once to `ToolStepExecutor`,
+which remains the only owner of call construction, execution, evidence
+insertion, and budget consumption. The loop also counts attempted calls and
+never starts a seventh one. It does not retry, execute tools concurrently, or
+copy builder, router, or tool-step logic.
+
+One successful run has this exact event shape:
+
+```text
+Session
+  -> Step(n)
+  -> ModelRequest(n) -> ModelResult(n)
+  -> [ToolCall(n) -> ToolResult(n) -> Step(n+1) -> ...]
+  -> FinalAnswer(termination_reason="completed")
+```
+
+The loop appends one `Step` immediately before every model decision. The
+existing `TracedModelClient` owns each correlated model event pair, the
+existing router owns each correlated tool event pair, and `TraceRecorder`
+continues to own `task_id`, continuous sequence assignment, and terminal-state
+enforcement. A `FinalAnswerDecision` is copied into one `FinalAnswer`; that
+terminal event is last, and no model or tool call is permitted afterward.
+
+### Frozen termination matrix
+
+The terminal producer in every row is `AgentLoop`, which constructs the event
+and delegates the one terminal append to `TraceRecorder.finalize`. A boundary
+that detects a failure first still owns its correlated non-terminal failure
+event. Only the `completed` row is implemented in this change; the other rows
+freeze the next changes' behavior rather than adding partial failure handling.
+
+| Path | `termination_reason` | Events retained before the terminal | Calls allowed after trigger | Status |
+| --- | --- | --- | --- | --- |
+| Structured final answer | `completed` | Session; every Step; all correlated model and successful tool pairs | None | Implemented |
+| Tool budget exhausted | `tool_budget_exhausted` | Events through the model result that requested the disallowed call; no ToolCall or ToolResult for it | None | Deferred |
+| Model execution failure | `model_execution_error` | Current Step, ModelRequest, and its error ModelResult, plus all earlier events | None; no retry | Deferred |
+| Invalid model output | `invalid_model_output` | Current Step, ModelRequest, and its error ModelResult, plus all earlier events | None; no retry | Deferred |
+| Tool failure | `tool_error` | Successful model pair followed by the correlated ToolCall and error ToolResult, plus all earlier events | None; no retry | Deferred |
+| Model timeout | `model_timeout` | Current Step, ModelRequest, and the future timeout-classified model result, plus all earlier events | None; no retry | Deferred |
+| Tool timeout | `tool_timeout` | Successful model pair, ToolCall, and the future timeout-classified ToolResult, plus all earlier events | None; no retry | Deferred |
+| Harness invariant failure | `harness_invariant_error` | Only valid events recorded before the invariant was detected; no fabricated pair | None | Deferred |
+
+The deferred rows must each end in exactly one terminal event once implemented.
+They may expose only stable classifications already present in boundary events;
+raw model, tool, or timeout exception text must not enter state or trace.
+
 ## Router contract
 
 `ToolRouter` supports exactly these tool names:

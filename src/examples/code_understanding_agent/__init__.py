@@ -1,5 +1,6 @@
 """Trace, tool-routing, and deterministic-context blocks for the agent example."""
 
+from .agent_loop import AgentLoop, AgentLoopOutcome, MAX_TOOL_CALLS_PER_TASK
 from .context import (
     ContextBuilder,
     ContextState,
@@ -57,6 +58,8 @@ from .tool_router import (
 )
 
 __all__ = [
+    "AgentLoop",
+    "AgentLoopOutcome",
     "ContextBuilder",
     "ContextState",
     "Evidence",
@@ -68,6 +71,7 @@ __all__ = [
     "GET_FILE_CONTEXT",
     "GetFileContextArguments",
     "InvalidModelOutputError",
+    "MAX_TOOL_CALLS_PER_TASK",
     "ModelBoundaryError",
     "ModelClient",
     "ModelExecutionError",
