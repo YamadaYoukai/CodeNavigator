@@ -8,6 +8,7 @@ from typing import ClassVar, Literal, TypeAlias
 ModelErrorType: TypeAlias = Literal[
     "model_execution_error",
     "invalid_model_output",
+    "model_timeout",
 ]
 
 
@@ -33,3 +34,10 @@ class InvalidModelOutputError(ModelBoundaryError):
 
     error_type = "invalid_model_output"
     stable_message = "invalid model output"
+
+
+class ModelTimeoutError(ModelBoundaryError):
+    """The model request reached its caller-owned timeout boundary."""
+
+    error_type = "model_timeout"
+    stable_message = "model execution timed out"

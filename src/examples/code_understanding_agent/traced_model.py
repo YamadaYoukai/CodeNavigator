@@ -19,6 +19,7 @@ from .model_errors import (
     InvalidModelOutputError,
     ModelErrorType,
     ModelExecutionError,
+    ModelTimeoutError,
 )
 from .trace import TraceRecorder
 
@@ -66,6 +67,13 @@ class TracedModelClient:
         started_at = self._clock()
         try:
             decision = self._client.decide(model_input)
+        except (ModelTimeoutError, TimeoutError):
+            self._record_error(
+                request_id,
+                "model_timeout",
+                self._measure_elapsed_ms(started_at),
+            )
+            raise ModelTimeoutError() from None
         except InvalidModelOutputError:
             self._record_error(
                 request_id,

@@ -25,6 +25,13 @@ class ToolCallExecutor(Protocol):
         ...
 
 
+class ToolStepInvariantError(RuntimeError):
+    """Signal a stable post-condition failure at the Tool step boundary."""
+
+    def __init__(self) -> None:
+        super().__init__("tool step invariant failed")
+
+
 @dataclass(frozen=True, slots=True)
 class ToolStepOutcome:
     """Outputs of one attempted tool transition.
@@ -76,9 +83,9 @@ class ToolStepExecutor:
         )
         tool_result = await self._router.execute(call)
         if not isinstance(tool_result, ToolResult):
-            raise TypeError("router.execute must return a ToolResult")
+            raise ToolStepInvariantError() from None
         if tool_result.call_id != decision.call_id:
-            raise ValueError("tool result call_id must match the decision")
+            raise ToolStepInvariantError() from None
 
         tool_evidence = _to_fact_evidence(decision, tool_result)
         next_state = state.model_copy(

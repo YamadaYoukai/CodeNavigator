@@ -31,6 +31,7 @@ from .model_errors import (
     InvalidModelOutputError,
     ModelBoundaryError,
     ModelExecutionError,
+    ModelTimeoutError,
 )
 from .openai_model import OpenAIModel, build_messages, build_tools
 from .repository_resolver import RepositoryAliasResolver
@@ -38,6 +39,7 @@ from .trace import TraceRecorder
 from .traced_model import TracedModelClient
 from .tool_step import (
     ToolCallExecutor,
+    ToolStepInvariantError,
     ToolStepExecutor,
     ToolStepOutcome,
 )
@@ -75,6 +77,7 @@ __all__ = [
     "ModelBoundaryError",
     "ModelClient",
     "ModelExecutionError",
+    "ModelTimeoutError",
     "ModelInput",
     "ModelDecision",
     "ModelRequest",
@@ -98,6 +101,7 @@ __all__ = [
     "ToolRouter",
     "ToolSchema",
     "ToolStepExecutor",
+    "ToolStepInvariantError",
     "ToolStepOutcome",
     "ToolResult",
     "ToolValidationError",

@@ -8,8 +8,8 @@ sequence assignment. Most event timing remains caller-supplied;
 
 ## Agent loop contract
 
-`AgentLoop` is the smallest successful-path orchestration layer over the
-existing boundaries. Its caller supplies one immutable initial `ContextState`
+`AgentLoop` is the termination-orchestration layer over the existing
+boundaries. Its caller supplies one immutable initial `ContextState`
 and injects a `ContextBuilder`, `ModelClient` (normally a
 `TracedModelClient`), `ToolStepExecutor`, and the single `TraceRecorder` shared
 by the traced model and tool router. The recorder must be empty and
@@ -49,23 +49,33 @@ terminal event is last, and no model or tool call is permitted afterward.
 The terminal producer in every row is `AgentLoop`, which constructs the event
 and delegates the one terminal append to `TraceRecorder.finalize`. A boundary
 that detects a failure first still owns its correlated non-terminal failure
-event. Only the `completed` row is implemented in this change; the other rows
-freeze the next changes' behavior rather than adding partial failure handling.
+event. Failure terminals contain one stable explanation and empty `evidence`,
+`uncertainties`, and `next_queries`; they never copy exception text, provider
+responses, or transport details.
 
 | Path | `termination_reason` | Events retained before the terminal | Calls allowed after trigger | Status |
 | --- | --- | --- | --- | --- |
 | Structured final answer | `completed` | Session; every Step; all correlated model and successful tool pairs | None | Implemented |
-| Tool budget exhausted | `tool_budget_exhausted` | Events through the model result that requested the disallowed call; no ToolCall or ToolResult for it | None | Deferred |
-| Model execution failure | `model_execution_error` | Current Step, ModelRequest, and its error ModelResult, plus all earlier events | None; no retry | Deferred |
-| Invalid model output | `invalid_model_output` | Current Step, ModelRequest, and its error ModelResult, plus all earlier events | None; no retry | Deferred |
-| Tool failure | `tool_error` | Successful model pair followed by the correlated ToolCall and error ToolResult, plus all earlier events | None; no retry | Deferred |
-| Model timeout | `model_timeout` | Current Step, ModelRequest, and the future timeout-classified model result, plus all earlier events | None; no retry | Deferred |
-| Tool timeout | `tool_timeout` | Successful model pair, ToolCall, and the future timeout-classified ToolResult, plus all earlier events | None; no retry | Deferred |
-| Harness invariant failure | `harness_invariant_error` | Only valid events recorded before the invariant was detected; no fabricated pair | None | Deferred |
+| Tool budget exhausted | `tool_budget_exhausted` | Events through the model result that requested the disallowed call; no ToolCall or ToolResult for it | None | Implemented |
+| Model execution failure | `model_execution_error` | Current Step, ModelRequest, and its error ModelResult, plus all earlier events | None; no retry | Implemented |
+| Invalid model output | `invalid_model_output` | Current Step, ModelRequest, and its error ModelResult, plus all earlier events | None; no retry | Implemented |
+| Tool failure | `tool_error` | Successful model pair followed by the correlated ToolCall and error ToolResult, plus all earlier events | None; no retry | Implemented |
+| Model timeout | `model_timeout` | Current Step, ModelRequest, and its timeout-classified error ModelResult, plus all earlier events | None; no retry | Implemented |
+| Tool timeout | `tool_timeout` | Successful model pair, ToolCall, and its timeout-classified error ToolResult, plus all earlier events | None; no retry | Implemented |
+| Harness invariant failure | `harness_invariant_error` | Only valid events recorded before the invariant was detected; no fabricated pair | None | Implemented |
 
-The deferred rows must each end in exactly one terminal event once implemented.
-They may expose only stable classifications already present in boundary events;
-raw model, tool, or timeout exception text must not enter state or trace.
+Every row ends in exactly one terminal event. Boundary failures may expose only
+their stable classifications; raw model, tool, or timeout exception text must
+not enter state, trace, or the returned outcome. The loop catches only explicit
+boundary and invariant errors. Unexpected programming errors still propagate
+rather than being relabeled as harness failures.
+
+Before consuming a decision or tool outcome, the loop verifies the immediately
+preceding correlated event pair, including identifier, status, and serialized
+decision/result. A missing result, mismatched identifier, contract-external
+decision, or invalid budget transition terminates as `harness_invariant_error`
+without fabricating the missing event. This is a post-condition check; parsing,
+argument validation, call construction, and execution remain boundary-owned.
 
 ## Router contract
 
@@ -105,6 +115,7 @@ Only the following router error codes are emitted in a `ToolResult.error_type`:
 | `ambiguous_repository` | One configured alias refers to more than one canonical repository. |
 | `invalid_arguments` | The injected adapter rejects caller-supplied arguments. |
 | `tool_execution_error` | Adapter validation unexpectedly fails, invocation fails, or its result cannot be normalized to a non-null JSON value. |
+| `tool_timeout` | The invoked Tool raises the explicit timeout signal before producing a result. |
 
 The trace carries the stable classification rather than backend exception text.
 This keeps traces deterministic and avoids exposing implementation details; the
@@ -118,8 +129,11 @@ then validates the outcome as JSON before creating a successful `ToolResult`.
 This allows domain models such as `CodeSearchResponse` to cross the trace
 boundary without coupling the trace schema to those models.
 
-The design intentionally does not retry tools, measure wall-clock time, persist
-traces, or provide a plugin registry. Retrying can duplicate side effects and
+The design intentionally does not retry tools, enforce a timeout by spawning a
+background thread, measure Tool wall-clock time, persist traces, or provide a
+plugin registry. A caller-owned transport may enforce its timeout and raise the
+explicit timeout signal; the router synchronously classifies that completed
+failure before the loop can finalize. Retrying can duplicate side effects and
 would obscure the one-call/one-result trace invariant. A fixed two-tool
 allowlist is preferable here because the agent workflow is deliberately narrow;
 adding another capability requires an explicit contract, adapter, and tests.
@@ -189,10 +203,10 @@ wire schema.
 
 A response crosses the boundary only when it contains exactly one allowlisted,
 validated tool call or JSON content that validates as `FinalAnswerDecision`.
-Provider/transport failures become `model_execution_error`; refusals, empty
-responses, malformed JSON, multiple or unknown tool calls, and invalid arguments
-become `invalid_model_output`. Neither error retains the provider exception or
-raw response.
+Provider/transport failures become `model_execution_error`; explicit provider
+or built-in timeout exceptions become `model_timeout`; refusals, empty responses,
+malformed JSON, multiple or unknown tool calls, and invalid arguments become
+`invalid_model_output`. No error retains the provider exception or raw response.
 
 `TracedModelClient` is provider-independent and can wrap both `FakeModel` and
 `OpenAIModel`. It generates a local model `request_id`, appends a safe
@@ -200,10 +214,10 @@ raw response.
 `ModelResult`. A successful result has a serialized decision and no error type;
 an error result has only its stable error type. Every model result also has a
 required non-negative `elapsed_ms`, measured with `time.perf_counter` around
-the wrapped `decide` call. This duration includes SDK transport and response
-validation for `OpenAIModel`, but excludes context construction and trace
-serialization. Tests inject a deterministic clock instead of asserting real
-wall-clock timing.
+the wrapped `decide` call, including failures and timeouts. This duration
+includes SDK transport and response validation for `OpenAIModel`, but excludes
+context construction and trace serialization. Tests inject a deterministic
+clock instead of asserting real wall-clock timing.
 
 The trace schema has no fields for API keys, request headers, base URLs, raw
 exceptions, or raw responses. The real-model smoke report repeats this as an

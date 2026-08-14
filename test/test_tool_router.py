@@ -158,6 +158,32 @@ def test_should_return_execution_error_and_record_correlated_trace_when_tool_rai
     assert_recorded_pair(trace, result, "call-exception")
 
 
+def test_should_return_timeout_and_record_correlated_trace_without_raw_error() -> None:
+    private_marker = "private Tool timeout detail"
+    trace = TraceRecorder(task_id="router-timeout")
+    invocations = 0
+
+    async def timing_out_search_code(**_: object) -> object:
+        nonlocal invocations
+        invocations += 1
+        raise TimeoutError(private_marker)
+
+    router = build_router(trace, timing_out_search_code)
+    call = ToolCall(
+        call_id="call-timeout",
+        tool_name=SEARCH_CODE,
+        arguments={"query": "retry policy"},
+    )
+
+    result = asyncio.run(router.execute(call))
+
+    assert result.status == "error"
+    assert result.error_type == ToolErrorCode.TOOL_TIMEOUT.value
+    assert invocations == 1
+    assert_recorded_pair(trace, result, "call-timeout")
+    assert private_marker not in trace.to_json()
+
+
 def test_should_trace_original_model_alias_and_canonical_executable_call() -> None:
     trace = TraceRecorder(task_id="router-repository-alias")
     trace.append(

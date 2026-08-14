@@ -11,6 +11,7 @@ from src.examples.code_understanding_agent import (
     ModelExecutionError,
     ModelRequest,
     ModelResult,
+    ModelTimeoutError,
     OpenAIModel,
     RepositoryHint,
     SearchCodeArguments,
@@ -258,6 +259,17 @@ def test_sdk_exception_is_classified_as_model_execution_error() -> None:
     assert "raw SDK failure" not in str(caught.value)
 
 
+def test_sdk_timeout_is_classified_without_retaining_transport_details() -> None:
+    completions = FakeCompletions(error=TimeoutError("private transport timeout"))
+    adapter = OpenAIModel(client=FakeClient(completions), model="test-model")
+
+    with pytest.raises(ModelTimeoutError, match="model execution timed out") as caught:
+        adapter.decide(build_model_input())
+
+    assert caught.value.__cause__ is None
+    assert "private transport timeout" not in str(caught.value)
+
+
 def test_traced_client_correlates_request_and_success_without_secrets() -> None:
     adapter, _ = build_adapter(
         make_response(
@@ -350,6 +362,32 @@ def test_traced_client_records_invalid_output_duration_and_stable_error() -> Non
     assert result.elapsed_ms == 75
     assert result.error_type == "invalid_model_output"
     assert result.decision is None
+
+
+def test_traced_client_records_correlated_model_timeout_without_retry() -> None:
+    private_marker = "private traced timeout detail"
+    completions = FakeCompletions(error=TimeoutError(private_marker))
+    adapter = OpenAIModel(client=FakeClient(completions), model="test-model")
+    trace = TraceRecorder(task_id="model-trace-timeout")
+    traced = TracedModelClient(
+        client=adapter,
+        model="test-model",
+        trace=trace,
+        request_id_factory=lambda: "model-request-timeout",
+        clock=iter((30.0, 29.0)).__next__,
+    )
+
+    with pytest.raises(ModelTimeoutError):
+        traced.decide(build_model_input())
+
+    request, result = trace.events
+    assert request.request_id == result.request_id == "model-request-timeout"
+    assert result.status == "error"
+    assert result.elapsed_ms == 0
+    assert result.error_type == "model_timeout"
+    assert result.decision is None
+    assert len(completions.calls) == 1
+    assert private_marker not in trace.to_json()
 
 
 def test_traced_client_can_wrap_fake_model_without_provider_dependencies() -> None:

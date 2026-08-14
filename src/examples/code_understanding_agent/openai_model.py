@@ -12,6 +12,7 @@ from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from typing import Any
 
+from openai import APITimeoutError
 from pydantic import JsonValue, ValidationError
 
 from .context import ModelInput, ToolSchema
@@ -20,7 +21,11 @@ from .model_boundary import (
     ModelDecision,
     ToolCallDecision,
 )
-from .model_errors import InvalidModelOutputError, ModelExecutionError
+from .model_errors import (
+    InvalidModelOutputError,
+    ModelExecutionError,
+    ModelTimeoutError,
+)
 from .tool_router import ALLOWED_TOOL_NAMES
 
 
@@ -147,6 +152,8 @@ class OpenAIModel:
                 tool_choice="auto",
                 parallel_tool_calls=False,
             )
+        except (APITimeoutError, ModelTimeoutError, TimeoutError):
+            raise ModelTimeoutError() from None
         except Exception:
             raise ModelExecutionError() from None
 

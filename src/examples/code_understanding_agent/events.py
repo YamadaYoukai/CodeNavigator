@@ -109,6 +109,7 @@ class ModelResult(TraceEvent):
     error_type: Literal[
         "model_execution_error",
         "invalid_model_output",
+        "model_timeout",
     ] | None = None
 
     @model_validator(mode="after")

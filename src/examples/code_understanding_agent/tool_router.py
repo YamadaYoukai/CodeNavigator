@@ -39,6 +39,7 @@ class ToolErrorCode(str, Enum):
     AMBIGUOUS_REPOSITORY = "ambiguous_repository"
     INVALID_ARGUMENTS = "invalid_arguments"
     TOOL_EXECUTION_ERROR = "tool_execution_error"
+    TOOL_TIMEOUT = "tool_timeout"
 
 
 class SearchCodeArguments(BaseModel):
@@ -121,8 +122,9 @@ class ToolDefinition(Protocol):
     """Adapter contract injected into :class:`ToolRouter`.
 
     Implementations validate raw JSON-like arguments and invoke their backing
-    tool.  They must raise ``ToolValidationError`` for invalid input; all other
-    exceptions are classified as execution failures by the router.
+    tool. They must raise ``ToolValidationError`` for invalid input and
+    ``TimeoutError`` for a caller-enforced timeout; all other exceptions are
+    classified as execution failures by the router.
     """
 
     def validate(self, arguments: Mapping[str, JsonValue]) -> object:
@@ -216,6 +218,11 @@ class ToolRouter:
             if inspect.isawaitable(outcome):
                 outcome = await outcome
             result = _normalize_result(outcome)
+        except TimeoutError:
+            return self._record_error(
+                executable_call.call_id,
+                ToolErrorCode.TOOL_TIMEOUT,
+            )
         except Exception:
             return self._record_error(
                 executable_call.call_id,
