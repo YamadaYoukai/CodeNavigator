@@ -1,0 +1,2734 @@
+{
+  "cases": [
+    {
+      "case_id": "agent-click-echo-001",
+      "category": "symbol_behavior",
+      "citations": [],
+      "evaluation_error": null,
+      "failure_category": "tool_or_service_unavailable",
+      "final_answer": {
+        "answer": "Model execution failed.",
+        "elapsed_ms": null,
+        "event_type": "final_answer",
+        "evidence": [],
+        "next_queries": [],
+        "sequence": 5,
+        "task_id": "agent-eval-agent-click-echo-001-8fd1297a-045c-4430-8b54-505622e925f1",
+        "termination_reason": "model_execution_error",
+        "uncertainties": []
+      },
+      "gold": {
+        "click_revision": "6eeb50e948ea136db145280f6f5dd52eca3fa7e5",
+        "expected_result": "answerable",
+        "locations": [
+          {
+            "line_max": 334,
+            "line_min": 234,
+            "path": "src/click/utils.py",
+            "repo": "click"
+          }
+        ],
+        "reviewed_on": "2026-08-16"
+      },
+      "latency_ms": {
+        "model": {
+          "average": 5335.0,
+          "count": 1,
+          "maximum": 5335,
+          "minimum": 5335,
+          "total": 5335
+        },
+        "model_calls": [
+          5335
+        ],
+        "task_total": 5336,
+        "tool": {
+          "average": null,
+          "count": 0,
+          "maximum": null,
+          "minimum": null,
+          "total": null
+        },
+        "tools": []
+      },
+      "question": "In Click 8.4.1, where is `echo` implemented, and what does it do with ANSI styles when the output is not an interactive terminal?",
+      "retrieval_no_match_observed": false,
+      "submitted_final_decision": null,
+      "success": false,
+      "task_id": "agent-eval-agent-click-echo-001-8fd1297a-045c-4430-8b54-505622e925f1",
+      "tool_attempts": {
+        "count": 0,
+        "limit": 6,
+        "names": [],
+        "within_limit": true
+      },
+      "trace": {
+        "events": [
+          {
+            "available_tools": [
+              "search_code",
+              "get_file_context"
+            ],
+            "elapsed_ms": null,
+            "event_type": "session",
+            "sequence": 1,
+            "task_id": "agent-eval-agent-click-echo-001-8fd1297a-045c-4430-8b54-505622e925f1",
+            "user_task": "In Click 8.4.1, where is `echo` implemented, and what does it do with ANSI styles when the output is not an interactive terminal?"
+          },
+          {
+            "elapsed_ms": null,
+            "event_type": "step",
+            "purpose": "Request the next model decision.",
+            "sequence": 2,
+            "step_number": 1,
+            "task_id": "agent-eval-agent-click-echo-001-8fd1297a-045c-4430-8b54-505622e925f1"
+          },
+          {
+            "elapsed_ms": null,
+            "event_type": "model_request",
+            "model": "gpt-5.6-luna(high)",
+            "model_input": {
+              "current_task": "In Click 8.4.1, where is `echo` implemented, and what does it do with ANSI styles when the output is not an interactive terminal?",
+              "evidence": [],
+              "remaining_tool_calls": 6,
+              "repository_hints": [
+                {
+                  "aliases": [
+                    "Click",
+                    "pallets/click",
+                    "github.com/pallets/click"
+                  ],
+                  "canonical_name": "click"
+                }
+              ],
+              "system_instruction": "Inspect only the supplied Click repository with the retrieval tools. Do not answer code questions from memory or caller narration. Use search_code to find relevant source and get_file_context when surrounding implementation is needed. Every factual final answer must include one or more exact citations in canonical repo/path:line form copied from successful Tool results. If no successful Tool evidence supports an answer, return a final answer with an empty evidence list.",
+              "tool_schemas": [
+                {
+                  "description": "Search indexed source code.",
+                  "input_schema": {
+                    "additionalProperties": false,
+                    "description": "Router-side contract for ``search_code``.",
+                    "properties": {
+                      "lang": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "title": "Lang"
+                      },
+                      "limit": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 1,
+                        "title": "Limit",
+                        "type": "integer"
+                      },
+                      "literal": {
+                        "default": false,
+                        "title": "Literal",
+                        "type": "boolean"
+                      },
+                      "path": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "title": "Path"
+                      },
+                      "query": {
+                        "minLength": 1,
+                        "title": "Query",
+                        "type": "string"
+                      },
+                      "repo": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Exact canonical indexed repository name from repository_hints; use null when no supplied hint applies and never invent a name.",
+                        "title": "Repo"
+                      }
+                    },
+                    "required": [
+                      "query"
+                    ],
+                    "title": "SearchCodeArguments",
+                    "type": "object"
+                  },
+                  "name": "search_code"
+                },
+                {
+                  "description": "Read source lines around a known repository location.",
+                  "input_schema": {
+                    "additionalProperties": false,
+                    "description": "Router-side contract for ``get_file_context``.",
+                    "properties": {
+                      "file_path": {
+                        "minLength": 1,
+                        "title": "File Path",
+                        "type": "string"
+                      },
+                      "line_number": {
+                        "minimum": 1,
+                        "title": "Line Number",
+                        "type": "integer"
+                      },
+                      "lines_after": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 0,
+                        "title": "Lines After",
+                        "type": "integer"
+                      },
+                      "lines_before": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 0,
+                        "title": "Lines Before",
+                        "type": "integer"
+                      },
+                      "repository": {
+                        "description": "Canonical repository name returned by search_code or supplied in repository_hints; never invent or rewrite it.",
+                        "minLength": 1,
+                        "title": "Repository",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "repository",
+                      "file_path",
+                      "line_number"
+                    ],
+                    "title": "GetFileContextArguments",
+                    "type": "object"
+                  },
+                  "name": "get_file_context"
+                }
+              ]
+            },
+            "request_id": "7e4045cb-257a-464f-acf5-0f55a1b52ddc",
+            "sequence": 3,
+            "task_id": "agent-eval-agent-click-echo-001-8fd1297a-045c-4430-8b54-505622e925f1"
+          },
+          {
+            "decision": null,
+            "elapsed_ms": 5335,
+            "error_type": "model_execution_error",
+            "event_type": "model_result",
+            "request_id": "7e4045cb-257a-464f-acf5-0f55a1b52ddc",
+            "sequence": 4,
+            "status": "error",
+            "task_id": "agent-eval-agent-click-echo-001-8fd1297a-045c-4430-8b54-505622e925f1"
+          },
+          {
+            "answer": "Model execution failed.",
+            "elapsed_ms": null,
+            "event_type": "final_answer",
+            "evidence": [],
+            "next_queries": [],
+            "sequence": 5,
+            "task_id": "agent-eval-agent-click-echo-001-8fd1297a-045c-4430-8b54-505622e925f1",
+            "termination_reason": "model_execution_error",
+            "uncertainties": []
+          }
+        ],
+        "finalized": true,
+        "task_id": "agent-eval-agent-click-echo-001-8fd1297a-045c-4430-8b54-505622e925f1"
+      },
+      "trace_integrity": {
+        "finalized_matches_terminal": true,
+        "model_pairs_complete": true,
+        "ok": true,
+        "sequences_continuous": true,
+        "task_ids_match": true,
+        "terminal_last": true,
+        "tool_pairs_complete": true,
+        "unique_terminal": true
+      }
+    },
+    {
+      "case_id": "agent-click-open-file-001",
+      "category": "file_behavior",
+      "citations": [],
+      "evaluation_error": null,
+      "failure_category": "tool_or_service_unavailable",
+      "final_answer": {
+        "answer": "Model execution failed.",
+        "elapsed_ms": null,
+        "event_type": "final_answer",
+        "evidence": [],
+        "next_queries": [],
+        "sequence": 5,
+        "task_id": "agent-eval-agent-click-open-file-001-09211945-15d6-40de-a900-6a085e0dd867",
+        "termination_reason": "model_execution_error",
+        "uncertainties": []
+      },
+      "gold": {
+        "click_revision": "6eeb50e948ea136db145280f6f5dd52eca3fa7e5",
+        "expected_result": "answerable",
+        "locations": [
+          {
+            "line_max": 416,
+            "line_min": 370,
+            "path": "src/click/utils.py",
+            "repo": "click"
+          }
+        ],
+        "reviewed_on": "2026-08-16"
+      },
+      "latency_ms": {
+        "model": {
+          "average": 5010.0,
+          "count": 1,
+          "maximum": 5010,
+          "minimum": 5010,
+          "total": 5010
+        },
+        "model_calls": [
+          5010
+        ],
+        "task_total": 5011,
+        "tool": {
+          "average": null,
+          "count": 0,
+          "maximum": null,
+          "minimum": null,
+          "total": null
+        },
+        "tools": []
+      },
+      "question": "How does Click 8.4.1 implement `open_file`, including its handling of `-`, lazy opening, and atomic writes? Locate the implementation.",
+      "retrieval_no_match_observed": false,
+      "submitted_final_decision": null,
+      "success": false,
+      "task_id": "agent-eval-agent-click-open-file-001-09211945-15d6-40de-a900-6a085e0dd867",
+      "tool_attempts": {
+        "count": 0,
+        "limit": 6,
+        "names": [],
+        "within_limit": true
+      },
+      "trace": {
+        "events": [
+          {
+            "available_tools": [
+              "search_code",
+              "get_file_context"
+            ],
+            "elapsed_ms": null,
+            "event_type": "session",
+            "sequence": 1,
+            "task_id": "agent-eval-agent-click-open-file-001-09211945-15d6-40de-a900-6a085e0dd867",
+            "user_task": "How does Click 8.4.1 implement `open_file`, including its handling of `-`, lazy opening, and atomic writes? Locate the implementation."
+          },
+          {
+            "elapsed_ms": null,
+            "event_type": "step",
+            "purpose": "Request the next model decision.",
+            "sequence": 2,
+            "step_number": 1,
+            "task_id": "agent-eval-agent-click-open-file-001-09211945-15d6-40de-a900-6a085e0dd867"
+          },
+          {
+            "elapsed_ms": null,
+            "event_type": "model_request",
+            "model": "gpt-5.6-luna(high)",
+            "model_input": {
+              "current_task": "How does Click 8.4.1 implement `open_file`, including its handling of `-`, lazy opening, and atomic writes? Locate the implementation.",
+              "evidence": [],
+              "remaining_tool_calls": 6,
+              "repository_hints": [
+                {
+                  "aliases": [
+                    "Click",
+                    "pallets/click",
+                    "github.com/pallets/click"
+                  ],
+                  "canonical_name": "click"
+                }
+              ],
+              "system_instruction": "Inspect only the supplied Click repository with the retrieval tools. Do not answer code questions from memory or caller narration. Use search_code to find relevant source and get_file_context when surrounding implementation is needed. Every factual final answer must include one or more exact citations in canonical repo/path:line form copied from successful Tool results. If no successful Tool evidence supports an answer, return a final answer with an empty evidence list.",
+              "tool_schemas": [
+                {
+                  "description": "Search indexed source code.",
+                  "input_schema": {
+                    "additionalProperties": false,
+                    "description": "Router-side contract for ``search_code``.",
+                    "properties": {
+                      "lang": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "title": "Lang"
+                      },
+                      "limit": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 1,
+                        "title": "Limit",
+                        "type": "integer"
+                      },
+                      "literal": {
+                        "default": false,
+                        "title": "Literal",
+                        "type": "boolean"
+                      },
+                      "path": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "title": "Path"
+                      },
+                      "query": {
+                        "minLength": 1,
+                        "title": "Query",
+                        "type": "string"
+                      },
+                      "repo": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Exact canonical indexed repository name from repository_hints; use null when no supplied hint applies and never invent a name.",
+                        "title": "Repo"
+                      }
+                    },
+                    "required": [
+                      "query"
+                    ],
+                    "title": "SearchCodeArguments",
+                    "type": "object"
+                  },
+                  "name": "search_code"
+                },
+                {
+                  "description": "Read source lines around a known repository location.",
+                  "input_schema": {
+                    "additionalProperties": false,
+                    "description": "Router-side contract for ``get_file_context``.",
+                    "properties": {
+                      "file_path": {
+                        "minLength": 1,
+                        "title": "File Path",
+                        "type": "string"
+                      },
+                      "line_number": {
+                        "minimum": 1,
+                        "title": "Line Number",
+                        "type": "integer"
+                      },
+                      "lines_after": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 0,
+                        "title": "Lines After",
+                        "type": "integer"
+                      },
+                      "lines_before": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 0,
+                        "title": "Lines Before",
+                        "type": "integer"
+                      },
+                      "repository": {
+                        "description": "Canonical repository name returned by search_code or supplied in repository_hints; never invent or rewrite it.",
+                        "minLength": 1,
+                        "title": "Repository",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "repository",
+                      "file_path",
+                      "line_number"
+                    ],
+                    "title": "GetFileContextArguments",
+                    "type": "object"
+                  },
+                  "name": "get_file_context"
+                }
+              ]
+            },
+            "request_id": "d3a3c3a6-95d7-43b5-844c-c19b27fb7fb0",
+            "sequence": 3,
+            "task_id": "agent-eval-agent-click-open-file-001-09211945-15d6-40de-a900-6a085e0dd867"
+          },
+          {
+            "decision": null,
+            "elapsed_ms": 5010,
+            "error_type": "model_execution_error",
+            "event_type": "model_result",
+            "request_id": "d3a3c3a6-95d7-43b5-844c-c19b27fb7fb0",
+            "sequence": 4,
+            "status": "error",
+            "task_id": "agent-eval-agent-click-open-file-001-09211945-15d6-40de-a900-6a085e0dd867"
+          },
+          {
+            "answer": "Model execution failed.",
+            "elapsed_ms": null,
+            "event_type": "final_answer",
+            "evidence": [],
+            "next_queries": [],
+            "sequence": 5,
+            "task_id": "agent-eval-agent-click-open-file-001-09211945-15d6-40de-a900-6a085e0dd867",
+            "termination_reason": "model_execution_error",
+            "uncertainties": []
+          }
+        ],
+        "finalized": true,
+        "task_id": "agent-eval-agent-click-open-file-001-09211945-15d6-40de-a900-6a085e0dd867"
+      },
+      "trace_integrity": {
+        "finalized_matches_terminal": true,
+        "model_pairs_complete": true,
+        "ok": true,
+        "sequences_continuous": true,
+        "task_ids_match": true,
+        "terminal_last": true,
+        "tool_pairs_complete": true,
+        "unique_terminal": true
+      }
+    },
+    {
+      "case_id": "agent-click-format-filename-001",
+      "category": "path_display_behavior",
+      "citations": [],
+      "evaluation_error": null,
+      "failure_category": "tool_or_service_unavailable",
+      "final_answer": {
+        "answer": "Model execution failed.",
+        "elapsed_ms": null,
+        "event_type": "final_answer",
+        "evidence": [],
+        "next_queries": [],
+        "sequence": 5,
+        "task_id": "agent-eval-agent-click-format-filename-001-e20cac20-40f2-48e3-a85f-33c2076196bc",
+        "termination_reason": "model_execution_error",
+        "uncertainties": []
+      },
+      "gold": {
+        "click_revision": "6eeb50e948ea136db145280f6f5dd52eca3fa7e5",
+        "expected_result": "answerable",
+        "locations": [
+          {
+            "line_max": 458,
+            "line_min": 419,
+            "path": "src/click/utils.py",
+            "repo": "click"
+          }
+        ],
+        "reviewed_on": "2026-08-16"
+      },
+      "latency_ms": {
+        "model": {
+          "average": 5013.0,
+          "count": 1,
+          "maximum": 5013,
+          "minimum": 5013,
+          "total": 5013
+        },
+        "model_calls": [
+          5013
+        ],
+        "task_total": 5014,
+        "tool": {
+          "average": null,
+          "count": 0,
+          "maximum": null,
+          "minimum": null,
+          "total": null
+        },
+        "tools": []
+      },
+      "question": "Where does Click 8.4.1 make filenames safe for UI display, and how are invalid bytes or surrogate escapes handled?",
+      "retrieval_no_match_observed": false,
+      "submitted_final_decision": null,
+      "success": false,
+      "task_id": "agent-eval-agent-click-format-filename-001-e20cac20-40f2-48e3-a85f-33c2076196bc",
+      "tool_attempts": {
+        "count": 0,
+        "limit": 6,
+        "names": [],
+        "within_limit": true
+      },
+      "trace": {
+        "events": [
+          {
+            "available_tools": [
+              "search_code",
+              "get_file_context"
+            ],
+            "elapsed_ms": null,
+            "event_type": "session",
+            "sequence": 1,
+            "task_id": "agent-eval-agent-click-format-filename-001-e20cac20-40f2-48e3-a85f-33c2076196bc",
+            "user_task": "Where does Click 8.4.1 make filenames safe for UI display, and how are invalid bytes or surrogate escapes handled?"
+          },
+          {
+            "elapsed_ms": null,
+            "event_type": "step",
+            "purpose": "Request the next model decision.",
+            "sequence": 2,
+            "step_number": 1,
+            "task_id": "agent-eval-agent-click-format-filename-001-e20cac20-40f2-48e3-a85f-33c2076196bc"
+          },
+          {
+            "elapsed_ms": null,
+            "event_type": "model_request",
+            "model": "gpt-5.6-luna(high)",
+            "model_input": {
+              "current_task": "Where does Click 8.4.1 make filenames safe for UI display, and how are invalid bytes or surrogate escapes handled?",
+              "evidence": [],
+              "remaining_tool_calls": 6,
+              "repository_hints": [
+                {
+                  "aliases": [
+                    "Click",
+                    "pallets/click",
+                    "github.com/pallets/click"
+                  ],
+                  "canonical_name": "click"
+                }
+              ],
+              "system_instruction": "Inspect only the supplied Click repository with the retrieval tools. Do not answer code questions from memory or caller narration. Use search_code to find relevant source and get_file_context when surrounding implementation is needed. Every factual final answer must include one or more exact citations in canonical repo/path:line form copied from successful Tool results. If no successful Tool evidence supports an answer, return a final answer with an empty evidence list.",
+              "tool_schemas": [
+                {
+                  "description": "Search indexed source code.",
+                  "input_schema": {
+                    "additionalProperties": false,
+                    "description": "Router-side contract for ``search_code``.",
+                    "properties": {
+                      "lang": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "title": "Lang"
+                      },
+                      "limit": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 1,
+                        "title": "Limit",
+                        "type": "integer"
+                      },
+                      "literal": {
+                        "default": false,
+                        "title": "Literal",
+                        "type": "boolean"
+                      },
+                      "path": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "title": "Path"
+                      },
+                      "query": {
+                        "minLength": 1,
+                        "title": "Query",
+                        "type": "string"
+                      },
+                      "repo": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Exact canonical indexed repository name from repository_hints; use null when no supplied hint applies and never invent a name.",
+                        "title": "Repo"
+                      }
+                    },
+                    "required": [
+                      "query"
+                    ],
+                    "title": "SearchCodeArguments",
+                    "type": "object"
+                  },
+                  "name": "search_code"
+                },
+                {
+                  "description": "Read source lines around a known repository location.",
+                  "input_schema": {
+                    "additionalProperties": false,
+                    "description": "Router-side contract for ``get_file_context``.",
+                    "properties": {
+                      "file_path": {
+                        "minLength": 1,
+                        "title": "File Path",
+                        "type": "string"
+                      },
+                      "line_number": {
+                        "minimum": 1,
+                        "title": "Line Number",
+                        "type": "integer"
+                      },
+                      "lines_after": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 0,
+                        "title": "Lines After",
+                        "type": "integer"
+                      },
+                      "lines_before": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 0,
+                        "title": "Lines Before",
+                        "type": "integer"
+                      },
+                      "repository": {
+                        "description": "Canonical repository name returned by search_code or supplied in repository_hints; never invent or rewrite it.",
+                        "minLength": 1,
+                        "title": "Repository",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "repository",
+                      "file_path",
+                      "line_number"
+                    ],
+                    "title": "GetFileContextArguments",
+                    "type": "object"
+                  },
+                  "name": "get_file_context"
+                }
+              ]
+            },
+            "request_id": "0736d8ff-2e44-40c1-b4a4-f906e969823d",
+            "sequence": 3,
+            "task_id": "agent-eval-agent-click-format-filename-001-e20cac20-40f2-48e3-a85f-33c2076196bc"
+          },
+          {
+            "decision": null,
+            "elapsed_ms": 5013,
+            "error_type": "model_execution_error",
+            "event_type": "model_result",
+            "request_id": "0736d8ff-2e44-40c1-b4a4-f906e969823d",
+            "sequence": 4,
+            "status": "error",
+            "task_id": "agent-eval-agent-click-format-filename-001-e20cac20-40f2-48e3-a85f-33c2076196bc"
+          },
+          {
+            "answer": "Model execution failed.",
+            "elapsed_ms": null,
+            "event_type": "final_answer",
+            "evidence": [],
+            "next_queries": [],
+            "sequence": 5,
+            "task_id": "agent-eval-agent-click-format-filename-001-e20cac20-40f2-48e3-a85f-33c2076196bc",
+            "termination_reason": "model_execution_error",
+            "uncertainties": []
+          }
+        ],
+        "finalized": true,
+        "task_id": "agent-eval-agent-click-format-filename-001-e20cac20-40f2-48e3-a85f-33c2076196bc"
+      },
+      "trace_integrity": {
+        "finalized_matches_terminal": true,
+        "model_pairs_complete": true,
+        "ok": true,
+        "sequences_continuous": true,
+        "task_ids_match": true,
+        "terminal_last": true,
+        "tool_pairs_complete": true,
+        "unique_terminal": true
+      }
+    },
+    {
+      "case_id": "agent-click-progressbar-001",
+      "category": "duplicate_candidates",
+      "citations": [],
+      "evaluation_error": null,
+      "failure_category": "tool_or_service_unavailable",
+      "final_answer": {
+        "answer": "Model execution failed.",
+        "elapsed_ms": null,
+        "event_type": "final_answer",
+        "evidence": [],
+        "next_queries": [],
+        "sequence": 5,
+        "task_id": "agent-eval-agent-click-progressbar-001-0af15b52-d546-4cdc-b20a-ae0e31454a01",
+        "termination_reason": "model_execution_error",
+        "uncertainties": []
+      },
+      "gold": {
+        "click_revision": "6eeb50e948ea136db145280f6f5dd52eca3fa7e5",
+        "expected_result": "answerable",
+        "locations": [
+          {
+            "line_max": 575,
+            "line_min": 351,
+            "path": "src/click/termui.py",
+            "repo": "click"
+          }
+        ],
+        "reviewed_on": "2026-08-16"
+      },
+      "latency_ms": {
+        "model": {
+          "average": 5010.0,
+          "count": 1,
+          "maximum": 5010,
+          "minimum": 5010,
+          "total": 5010
+        },
+        "model_calls": [
+          5010
+        ],
+        "task_total": 5011,
+        "tool": {
+          "average": null,
+          "count": 0,
+          "maximum": null,
+          "minimum": null,
+          "total": null
+        },
+        "tools": []
+      },
+      "question": "Click 8.4.1 has multiple `progressbar` definitions because of typing overloads. Which location contains the runtime implementation, and what object does it create?",
+      "retrieval_no_match_observed": false,
+      "submitted_final_decision": null,
+      "success": false,
+      "task_id": "agent-eval-agent-click-progressbar-001-0af15b52-d546-4cdc-b20a-ae0e31454a01",
+      "tool_attempts": {
+        "count": 0,
+        "limit": 6,
+        "names": [],
+        "within_limit": true
+      },
+      "trace": {
+        "events": [
+          {
+            "available_tools": [
+              "search_code",
+              "get_file_context"
+            ],
+            "elapsed_ms": null,
+            "event_type": "session",
+            "sequence": 1,
+            "task_id": "agent-eval-agent-click-progressbar-001-0af15b52-d546-4cdc-b20a-ae0e31454a01",
+            "user_task": "Click 8.4.1 has multiple `progressbar` definitions because of typing overloads. Which location contains the runtime implementation, and what object does it create?"
+          },
+          {
+            "elapsed_ms": null,
+            "event_type": "step",
+            "purpose": "Request the next model decision.",
+            "sequence": 2,
+            "step_number": 1,
+            "task_id": "agent-eval-agent-click-progressbar-001-0af15b52-d546-4cdc-b20a-ae0e31454a01"
+          },
+          {
+            "elapsed_ms": null,
+            "event_type": "model_request",
+            "model": "gpt-5.6-luna(high)",
+            "model_input": {
+              "current_task": "Click 8.4.1 has multiple `progressbar` definitions because of typing overloads. Which location contains the runtime implementation, and what object does it create?",
+              "evidence": [],
+              "remaining_tool_calls": 6,
+              "repository_hints": [
+                {
+                  "aliases": [
+                    "Click",
+                    "pallets/click",
+                    "github.com/pallets/click"
+                  ],
+                  "canonical_name": "click"
+                }
+              ],
+              "system_instruction": "Inspect only the supplied Click repository with the retrieval tools. Do not answer code questions from memory or caller narration. Use search_code to find relevant source and get_file_context when surrounding implementation is needed. Every factual final answer must include one or more exact citations in canonical repo/path:line form copied from successful Tool results. If no successful Tool evidence supports an answer, return a final answer with an empty evidence list.",
+              "tool_schemas": [
+                {
+                  "description": "Search indexed source code.",
+                  "input_schema": {
+                    "additionalProperties": false,
+                    "description": "Router-side contract for ``search_code``.",
+                    "properties": {
+                      "lang": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "title": "Lang"
+                      },
+                      "limit": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 1,
+                        "title": "Limit",
+                        "type": "integer"
+                      },
+                      "literal": {
+                        "default": false,
+                        "title": "Literal",
+                        "type": "boolean"
+                      },
+                      "path": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "title": "Path"
+                      },
+                      "query": {
+                        "minLength": 1,
+                        "title": "Query",
+                        "type": "string"
+                      },
+                      "repo": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Exact canonical indexed repository name from repository_hints; use null when no supplied hint applies and never invent a name.",
+                        "title": "Repo"
+                      }
+                    },
+                    "required": [
+                      "query"
+                    ],
+                    "title": "SearchCodeArguments",
+                    "type": "object"
+                  },
+                  "name": "search_code"
+                },
+                {
+                  "description": "Read source lines around a known repository location.",
+                  "input_schema": {
+                    "additionalProperties": false,
+                    "description": "Router-side contract for ``get_file_context``.",
+                    "properties": {
+                      "file_path": {
+                        "minLength": 1,
+                        "title": "File Path",
+                        "type": "string"
+                      },
+                      "line_number": {
+                        "minimum": 1,
+                        "title": "Line Number",
+                        "type": "integer"
+                      },
+                      "lines_after": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 0,
+                        "title": "Lines After",
+                        "type": "integer"
+                      },
+                      "lines_before": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 0,
+                        "title": "Lines Before",
+                        "type": "integer"
+                      },
+                      "repository": {
+                        "description": "Canonical repository name returned by search_code or supplied in repository_hints; never invent or rewrite it.",
+                        "minLength": 1,
+                        "title": "Repository",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "repository",
+                      "file_path",
+                      "line_number"
+                    ],
+                    "title": "GetFileContextArguments",
+                    "type": "object"
+                  },
+                  "name": "get_file_context"
+                }
+              ]
+            },
+            "request_id": "9def28a3-ff0a-4ab0-8f29-e1a188549890",
+            "sequence": 3,
+            "task_id": "agent-eval-agent-click-progressbar-001-0af15b52-d546-4cdc-b20a-ae0e31454a01"
+          },
+          {
+            "decision": null,
+            "elapsed_ms": 5010,
+            "error_type": "model_execution_error",
+            "event_type": "model_result",
+            "request_id": "9def28a3-ff0a-4ab0-8f29-e1a188549890",
+            "sequence": 4,
+            "status": "error",
+            "task_id": "agent-eval-agent-click-progressbar-001-0af15b52-d546-4cdc-b20a-ae0e31454a01"
+          },
+          {
+            "answer": "Model execution failed.",
+            "elapsed_ms": null,
+            "event_type": "final_answer",
+            "evidence": [],
+            "next_queries": [],
+            "sequence": 5,
+            "task_id": "agent-eval-agent-click-progressbar-001-0af15b52-d546-4cdc-b20a-ae0e31454a01",
+            "termination_reason": "model_execution_error",
+            "uncertainties": []
+          }
+        ],
+        "finalized": true,
+        "task_id": "agent-eval-agent-click-progressbar-001-0af15b52-d546-4cdc-b20a-ae0e31454a01"
+      },
+      "trace_integrity": {
+        "finalized_matches_terminal": true,
+        "model_pairs_complete": true,
+        "ok": true,
+        "sequences_continuous": true,
+        "task_ids_match": true,
+        "terminal_last": true,
+        "tool_pairs_complete": true,
+        "unique_terminal": true
+      }
+    },
+    {
+      "case_id": "agent-click-default-map-001",
+      "category": "configuration_behavior",
+      "citations": [],
+      "evaluation_error": null,
+      "failure_category": "tool_or_service_unavailable",
+      "final_answer": {
+        "answer": "Model execution failed.",
+        "elapsed_ms": null,
+        "event_type": "final_answer",
+        "evidence": [],
+        "next_queries": [],
+        "sequence": 5,
+        "task_id": "agent-eval-agent-click-default-map-001-a8c372c0-1e63-48ed-818b-5dbf420b3248",
+        "termination_reason": "model_execution_error",
+        "uncertainties": []
+      },
+      "gold": {
+        "click_revision": "6eeb50e948ea136db145280f6f5dd52eca3fa7e5",
+        "expected_result": "answerable",
+        "locations": [
+          {
+            "line_max": 771,
+            "line_min": 727,
+            "path": "src/click/core.py",
+            "repo": "click"
+          }
+        ],
+        "reviewed_on": "2026-08-16"
+      },
+      "latency_ms": {
+        "model": {
+          "average": 5009.0,
+          "count": 1,
+          "maximum": 5009,
+          "minimum": 5009,
+          "total": 5009
+        },
+        "model_calls": [
+          5009
+        ],
+        "task_total": 5010,
+        "tool": {
+          "average": null,
+          "count": 0,
+          "maximum": null,
+          "minimum": null,
+          "total": null
+        },
+        "tools": []
+      },
+      "question": "In Click 8.4.1, where does `Context.lookup_default` read `default_map`, and what changes when its `call` argument is false?",
+      "retrieval_no_match_observed": false,
+      "submitted_final_decision": null,
+      "success": false,
+      "task_id": "agent-eval-agent-click-default-map-001-a8c372c0-1e63-48ed-818b-5dbf420b3248",
+      "tool_attempts": {
+        "count": 0,
+        "limit": 6,
+        "names": [],
+        "within_limit": true
+      },
+      "trace": {
+        "events": [
+          {
+            "available_tools": [
+              "search_code",
+              "get_file_context"
+            ],
+            "elapsed_ms": null,
+            "event_type": "session",
+            "sequence": 1,
+            "task_id": "agent-eval-agent-click-default-map-001-a8c372c0-1e63-48ed-818b-5dbf420b3248",
+            "user_task": "In Click 8.4.1, where does `Context.lookup_default` read `default_map`, and what changes when its `call` argument is false?"
+          },
+          {
+            "elapsed_ms": null,
+            "event_type": "step",
+            "purpose": "Request the next model decision.",
+            "sequence": 2,
+            "step_number": 1,
+            "task_id": "agent-eval-agent-click-default-map-001-a8c372c0-1e63-48ed-818b-5dbf420b3248"
+          },
+          {
+            "elapsed_ms": null,
+            "event_type": "model_request",
+            "model": "gpt-5.6-luna(high)",
+            "model_input": {
+              "current_task": "In Click 8.4.1, where does `Context.lookup_default` read `default_map`, and what changes when its `call` argument is false?",
+              "evidence": [],
+              "remaining_tool_calls": 6,
+              "repository_hints": [
+                {
+                  "aliases": [
+                    "Click",
+                    "pallets/click",
+                    "github.com/pallets/click"
+                  ],
+                  "canonical_name": "click"
+                }
+              ],
+              "system_instruction": "Inspect only the supplied Click repository with the retrieval tools. Do not answer code questions from memory or caller narration. Use search_code to find relevant source and get_file_context when surrounding implementation is needed. Every factual final answer must include one or more exact citations in canonical repo/path:line form copied from successful Tool results. If no successful Tool evidence supports an answer, return a final answer with an empty evidence list.",
+              "tool_schemas": [
+                {
+                  "description": "Search indexed source code.",
+                  "input_schema": {
+                    "additionalProperties": false,
+                    "description": "Router-side contract for ``search_code``.",
+                    "properties": {
+                      "lang": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "title": "Lang"
+                      },
+                      "limit": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 1,
+                        "title": "Limit",
+                        "type": "integer"
+                      },
+                      "literal": {
+                        "default": false,
+                        "title": "Literal",
+                        "type": "boolean"
+                      },
+                      "path": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "title": "Path"
+                      },
+                      "query": {
+                        "minLength": 1,
+                        "title": "Query",
+                        "type": "string"
+                      },
+                      "repo": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Exact canonical indexed repository name from repository_hints; use null when no supplied hint applies and never invent a name.",
+                        "title": "Repo"
+                      }
+                    },
+                    "required": [
+                      "query"
+                    ],
+                    "title": "SearchCodeArguments",
+                    "type": "object"
+                  },
+                  "name": "search_code"
+                },
+                {
+                  "description": "Read source lines around a known repository location.",
+                  "input_schema": {
+                    "additionalProperties": false,
+                    "description": "Router-side contract for ``get_file_context``.",
+                    "properties": {
+                      "file_path": {
+                        "minLength": 1,
+                        "title": "File Path",
+                        "type": "string"
+                      },
+                      "line_number": {
+                        "minimum": 1,
+                        "title": "Line Number",
+                        "type": "integer"
+                      },
+                      "lines_after": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 0,
+                        "title": "Lines After",
+                        "type": "integer"
+                      },
+                      "lines_before": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 0,
+                        "title": "Lines Before",
+                        "type": "integer"
+                      },
+                      "repository": {
+                        "description": "Canonical repository name returned by search_code or supplied in repository_hints; never invent or rewrite it.",
+                        "minLength": 1,
+                        "title": "Repository",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "repository",
+                      "file_path",
+                      "line_number"
+                    ],
+                    "title": "GetFileContextArguments",
+                    "type": "object"
+                  },
+                  "name": "get_file_context"
+                }
+              ]
+            },
+            "request_id": "d9f81718-ee91-49bf-8df3-82a4e1f82258",
+            "sequence": 3,
+            "task_id": "agent-eval-agent-click-default-map-001-a8c372c0-1e63-48ed-818b-5dbf420b3248"
+          },
+          {
+            "decision": null,
+            "elapsed_ms": 5009,
+            "error_type": "model_execution_error",
+            "event_type": "model_result",
+            "request_id": "d9f81718-ee91-49bf-8df3-82a4e1f82258",
+            "sequence": 4,
+            "status": "error",
+            "task_id": "agent-eval-agent-click-default-map-001-a8c372c0-1e63-48ed-818b-5dbf420b3248"
+          },
+          {
+            "answer": "Model execution failed.",
+            "elapsed_ms": null,
+            "event_type": "final_answer",
+            "evidence": [],
+            "next_queries": [],
+            "sequence": 5,
+            "task_id": "agent-eval-agent-click-default-map-001-a8c372c0-1e63-48ed-818b-5dbf420b3248",
+            "termination_reason": "model_execution_error",
+            "uncertainties": []
+          }
+        ],
+        "finalized": true,
+        "task_id": "agent-eval-agent-click-default-map-001-a8c372c0-1e63-48ed-818b-5dbf420b3248"
+      },
+      "trace_integrity": {
+        "finalized_matches_terminal": true,
+        "model_pairs_complete": true,
+        "ok": true,
+        "sequences_continuous": true,
+        "task_ids_match": true,
+        "terminal_last": true,
+        "tool_pairs_complete": true,
+        "unique_terminal": true
+      }
+    },
+    {
+      "case_id": "agent-click-extra-args-001",
+      "category": "error_text",
+      "citations": [],
+      "evaluation_error": null,
+      "failure_category": "tool_or_service_unavailable",
+      "final_answer": {
+        "answer": "Model execution failed.",
+        "elapsed_ms": null,
+        "event_type": "final_answer",
+        "evidence": [],
+        "next_queries": [],
+        "sequence": 5,
+        "task_id": "agent-eval-agent-click-extra-args-001-ee69d41e-f86c-4d12-b08c-be994d1a5695",
+        "termination_reason": "model_execution_error",
+        "uncertainties": []
+      },
+      "gold": {
+        "click_revision": "6eeb50e948ea136db145280f6f5dd52eca3fa7e5",
+        "expected_result": "answerable",
+        "locations": [
+          {
+            "line_max": 1288,
+            "line_min": 1281,
+            "path": "src/click/core.py",
+            "repo": "click"
+          }
+        ],
+        "reviewed_on": "2026-08-16"
+      },
+      "latency_ms": {
+        "model": {
+          "average": 5009.0,
+          "count": 1,
+          "maximum": 5009,
+          "minimum": 5009,
+          "total": 5009
+        },
+        "model_calls": [
+          5009
+        ],
+        "task_total": 5010,
+        "tool": {
+          "average": null,
+          "count": 0,
+          "maximum": null,
+          "minimum": null,
+          "total": null
+        },
+        "tools": []
+      },
+      "question": "Where does Click 8.4.1 produce the singular versus plural `Got unexpected extra argument` error, and what conditions trigger it?",
+      "retrieval_no_match_observed": false,
+      "submitted_final_decision": null,
+      "success": false,
+      "task_id": "agent-eval-agent-click-extra-args-001-ee69d41e-f86c-4d12-b08c-be994d1a5695",
+      "tool_attempts": {
+        "count": 0,
+        "limit": 6,
+        "names": [],
+        "within_limit": true
+      },
+      "trace": {
+        "events": [
+          {
+            "available_tools": [
+              "search_code",
+              "get_file_context"
+            ],
+            "elapsed_ms": null,
+            "event_type": "session",
+            "sequence": 1,
+            "task_id": "agent-eval-agent-click-extra-args-001-ee69d41e-f86c-4d12-b08c-be994d1a5695",
+            "user_task": "Where does Click 8.4.1 produce the singular versus plural `Got unexpected extra argument` error, and what conditions trigger it?"
+          },
+          {
+            "elapsed_ms": null,
+            "event_type": "step",
+            "purpose": "Request the next model decision.",
+            "sequence": 2,
+            "step_number": 1,
+            "task_id": "agent-eval-agent-click-extra-args-001-ee69d41e-f86c-4d12-b08c-be994d1a5695"
+          },
+          {
+            "elapsed_ms": null,
+            "event_type": "model_request",
+            "model": "gpt-5.6-luna(high)",
+            "model_input": {
+              "current_task": "Where does Click 8.4.1 produce the singular versus plural `Got unexpected extra argument` error, and what conditions trigger it?",
+              "evidence": [],
+              "remaining_tool_calls": 6,
+              "repository_hints": [
+                {
+                  "aliases": [
+                    "Click",
+                    "pallets/click",
+                    "github.com/pallets/click"
+                  ],
+                  "canonical_name": "click"
+                }
+              ],
+              "system_instruction": "Inspect only the supplied Click repository with the retrieval tools. Do not answer code questions from memory or caller narration. Use search_code to find relevant source and get_file_context when surrounding implementation is needed. Every factual final answer must include one or more exact citations in canonical repo/path:line form copied from successful Tool results. If no successful Tool evidence supports an answer, return a final answer with an empty evidence list.",
+              "tool_schemas": [
+                {
+                  "description": "Search indexed source code.",
+                  "input_schema": {
+                    "additionalProperties": false,
+                    "description": "Router-side contract for ``search_code``.",
+                    "properties": {
+                      "lang": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "title": "Lang"
+                      },
+                      "limit": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 1,
+                        "title": "Limit",
+                        "type": "integer"
+                      },
+                      "literal": {
+                        "default": false,
+                        "title": "Literal",
+                        "type": "boolean"
+                      },
+                      "path": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "title": "Path"
+                      },
+                      "query": {
+                        "minLength": 1,
+                        "title": "Query",
+                        "type": "string"
+                      },
+                      "repo": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Exact canonical indexed repository name from repository_hints; use null when no supplied hint applies and never invent a name.",
+                        "title": "Repo"
+                      }
+                    },
+                    "required": [
+                      "query"
+                    ],
+                    "title": "SearchCodeArguments",
+                    "type": "object"
+                  },
+                  "name": "search_code"
+                },
+                {
+                  "description": "Read source lines around a known repository location.",
+                  "input_schema": {
+                    "additionalProperties": false,
+                    "description": "Router-side contract for ``get_file_context``.",
+                    "properties": {
+                      "file_path": {
+                        "minLength": 1,
+                        "title": "File Path",
+                        "type": "string"
+                      },
+                      "line_number": {
+                        "minimum": 1,
+                        "title": "Line Number",
+                        "type": "integer"
+                      },
+                      "lines_after": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 0,
+                        "title": "Lines After",
+                        "type": "integer"
+                      },
+                      "lines_before": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 0,
+                        "title": "Lines Before",
+                        "type": "integer"
+                      },
+                      "repository": {
+                        "description": "Canonical repository name returned by search_code or supplied in repository_hints; never invent or rewrite it.",
+                        "minLength": 1,
+                        "title": "Repository",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "repository",
+                      "file_path",
+                      "line_number"
+                    ],
+                    "title": "GetFileContextArguments",
+                    "type": "object"
+                  },
+                  "name": "get_file_context"
+                }
+              ]
+            },
+            "request_id": "fd7baee7-5ca5-4e2e-94f8-19d7afbca5b8",
+            "sequence": 3,
+            "task_id": "agent-eval-agent-click-extra-args-001-ee69d41e-f86c-4d12-b08c-be994d1a5695"
+          },
+          {
+            "decision": null,
+            "elapsed_ms": 5009,
+            "error_type": "model_execution_error",
+            "event_type": "model_result",
+            "request_id": "fd7baee7-5ca5-4e2e-94f8-19d7afbca5b8",
+            "sequence": 4,
+            "status": "error",
+            "task_id": "agent-eval-agent-click-extra-args-001-ee69d41e-f86c-4d12-b08c-be994d1a5695"
+          },
+          {
+            "answer": "Model execution failed.",
+            "elapsed_ms": null,
+            "event_type": "final_answer",
+            "evidence": [],
+            "next_queries": [],
+            "sequence": 5,
+            "task_id": "agent-eval-agent-click-extra-args-001-ee69d41e-f86c-4d12-b08c-be994d1a5695",
+            "termination_reason": "model_execution_error",
+            "uncertainties": []
+          }
+        ],
+        "finalized": true,
+        "task_id": "agent-eval-agent-click-extra-args-001-ee69d41e-f86c-4d12-b08c-be994d1a5695"
+      },
+      "trace_integrity": {
+        "finalized_matches_terminal": true,
+        "model_pairs_complete": true,
+        "ok": true,
+        "sequences_continuous": true,
+        "task_ids_match": true,
+        "terminal_last": true,
+        "tool_pairs_complete": true,
+        "unique_terminal": true
+      }
+    },
+    {
+      "case_id": "agent-click-command-normalize-001",
+      "category": "command_resolution",
+      "citations": [],
+      "evaluation_error": null,
+      "failure_category": "tool_or_service_unavailable",
+      "final_answer": {
+        "answer": "Model execution failed.",
+        "elapsed_ms": null,
+        "event_type": "final_answer",
+        "evidence": [],
+        "next_queries": [],
+        "sequence": 5,
+        "task_id": "agent-eval-agent-click-command-normalize-001-bfa682cf-fa9c-4910-b154-2af10d83521e",
+        "termination_reason": "model_execution_error",
+        "uncertainties": []
+      },
+      "gold": {
+        "click_revision": "6eeb50e948ea136db145280f6f5dd52eca3fa7e5",
+        "expected_result": "answerable",
+        "locations": [
+          {
+            "line_max": 1970,
+            "line_min": 1946,
+            "path": "src/click/core.py",
+            "repo": "click"
+          }
+        ],
+        "reviewed_on": "2026-08-16"
+      },
+      "latency_ms": {
+        "model": {
+          "average": 5009.0,
+          "count": 1,
+          "maximum": 5009,
+          "minimum": 5009,
+          "total": 5009
+        },
+        "model_calls": [
+          5009
+        ],
+        "task_total": 5010,
+        "tool": {
+          "average": null,
+          "count": 0,
+          "maximum": null,
+          "minimum": null,
+          "total": null
+        },
+        "tools": []
+      },
+      "question": "How does Click 8.4.1 retry subcommand resolution with `token_normalize_func`, and where is that behavior implemented?",
+      "retrieval_no_match_observed": false,
+      "submitted_final_decision": null,
+      "success": false,
+      "task_id": "agent-eval-agent-click-command-normalize-001-bfa682cf-fa9c-4910-b154-2af10d83521e",
+      "tool_attempts": {
+        "count": 0,
+        "limit": 6,
+        "names": [],
+        "within_limit": true
+      },
+      "trace": {
+        "events": [
+          {
+            "available_tools": [
+              "search_code",
+              "get_file_context"
+            ],
+            "elapsed_ms": null,
+            "event_type": "session",
+            "sequence": 1,
+            "task_id": "agent-eval-agent-click-command-normalize-001-bfa682cf-fa9c-4910-b154-2af10d83521e",
+            "user_task": "How does Click 8.4.1 retry subcommand resolution with `token_normalize_func`, and where is that behavior implemented?"
+          },
+          {
+            "elapsed_ms": null,
+            "event_type": "step",
+            "purpose": "Request the next model decision.",
+            "sequence": 2,
+            "step_number": 1,
+            "task_id": "agent-eval-agent-click-command-normalize-001-bfa682cf-fa9c-4910-b154-2af10d83521e"
+          },
+          {
+            "elapsed_ms": null,
+            "event_type": "model_request",
+            "model": "gpt-5.6-luna(high)",
+            "model_input": {
+              "current_task": "How does Click 8.4.1 retry subcommand resolution with `token_normalize_func`, and where is that behavior implemented?",
+              "evidence": [],
+              "remaining_tool_calls": 6,
+              "repository_hints": [
+                {
+                  "aliases": [
+                    "Click",
+                    "pallets/click",
+                    "github.com/pallets/click"
+                  ],
+                  "canonical_name": "click"
+                }
+              ],
+              "system_instruction": "Inspect only the supplied Click repository with the retrieval tools. Do not answer code questions from memory or caller narration. Use search_code to find relevant source and get_file_context when surrounding implementation is needed. Every factual final answer must include one or more exact citations in canonical repo/path:line form copied from successful Tool results. If no successful Tool evidence supports an answer, return a final answer with an empty evidence list.",
+              "tool_schemas": [
+                {
+                  "description": "Search indexed source code.",
+                  "input_schema": {
+                    "additionalProperties": false,
+                    "description": "Router-side contract for ``search_code``.",
+                    "properties": {
+                      "lang": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "title": "Lang"
+                      },
+                      "limit": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 1,
+                        "title": "Limit",
+                        "type": "integer"
+                      },
+                      "literal": {
+                        "default": false,
+                        "title": "Literal",
+                        "type": "boolean"
+                      },
+                      "path": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "title": "Path"
+                      },
+                      "query": {
+                        "minLength": 1,
+                        "title": "Query",
+                        "type": "string"
+                      },
+                      "repo": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Exact canonical indexed repository name from repository_hints; use null when no supplied hint applies and never invent a name.",
+                        "title": "Repo"
+                      }
+                    },
+                    "required": [
+                      "query"
+                    ],
+                    "title": "SearchCodeArguments",
+                    "type": "object"
+                  },
+                  "name": "search_code"
+                },
+                {
+                  "description": "Read source lines around a known repository location.",
+                  "input_schema": {
+                    "additionalProperties": false,
+                    "description": "Router-side contract for ``get_file_context``.",
+                    "properties": {
+                      "file_path": {
+                        "minLength": 1,
+                        "title": "File Path",
+                        "type": "string"
+                      },
+                      "line_number": {
+                        "minimum": 1,
+                        "title": "Line Number",
+                        "type": "integer"
+                      },
+                      "lines_after": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 0,
+                        "title": "Lines After",
+                        "type": "integer"
+                      },
+                      "lines_before": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 0,
+                        "title": "Lines Before",
+                        "type": "integer"
+                      },
+                      "repository": {
+                        "description": "Canonical repository name returned by search_code or supplied in repository_hints; never invent or rewrite it.",
+                        "minLength": 1,
+                        "title": "Repository",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "repository",
+                      "file_path",
+                      "line_number"
+                    ],
+                    "title": "GetFileContextArguments",
+                    "type": "object"
+                  },
+                  "name": "get_file_context"
+                }
+              ]
+            },
+            "request_id": "21b69db2-6264-475c-bb44-7d855563245b",
+            "sequence": 3,
+            "task_id": "agent-eval-agent-click-command-normalize-001-bfa682cf-fa9c-4910-b154-2af10d83521e"
+          },
+          {
+            "decision": null,
+            "elapsed_ms": 5009,
+            "error_type": "model_execution_error",
+            "event_type": "model_result",
+            "request_id": "21b69db2-6264-475c-bb44-7d855563245b",
+            "sequence": 4,
+            "status": "error",
+            "task_id": "agent-eval-agent-click-command-normalize-001-bfa682cf-fa9c-4910-b154-2af10d83521e"
+          },
+          {
+            "answer": "Model execution failed.",
+            "elapsed_ms": null,
+            "event_type": "final_answer",
+            "evidence": [],
+            "next_queries": [],
+            "sequence": 5,
+            "task_id": "agent-eval-agent-click-command-normalize-001-bfa682cf-fa9c-4910-b154-2af10d83521e",
+            "termination_reason": "model_execution_error",
+            "uncertainties": []
+          }
+        ],
+        "finalized": true,
+        "task_id": "agent-eval-agent-click-command-normalize-001-bfa682cf-fa9c-4910-b154-2af10d83521e"
+      },
+      "trace_integrity": {
+        "finalized_matches_terminal": true,
+        "model_pairs_complete": true,
+        "ok": true,
+        "sequences_continuous": true,
+        "task_ids_match": true,
+        "terminal_last": true,
+        "tool_pairs_complete": true,
+        "unique_terminal": true
+      }
+    },
+    {
+      "case_id": "agent-click-choice-message-001",
+      "category": "choice_behavior",
+      "citations": [],
+      "evaluation_error": null,
+      "failure_category": "tool_or_service_unavailable",
+      "final_answer": {
+        "answer": "Model execution failed.",
+        "elapsed_ms": null,
+        "event_type": "final_answer",
+        "evidence": [],
+        "next_queries": [],
+        "sequence": 5,
+        "task_id": "agent-eval-agent-click-choice-message-001-cef095dd-4351-487f-89c7-ce0b98aadfc4",
+        "termination_reason": "model_execution_error",
+        "uncertainties": []
+      },
+      "gold": {
+        "click_revision": "6eeb50e948ea136db145280f6f5dd52eca3fa7e5",
+        "expected_result": "answerable",
+        "locations": [
+          {
+            "line_max": 366,
+            "line_min": 302,
+            "path": "src/click/types.py",
+            "repo": "click"
+          }
+        ],
+        "reviewed_on": "2026-08-16"
+      },
+      "latency_ms": {
+        "model": {
+          "average": 5007.0,
+          "count": 1,
+          "maximum": 5007,
+          "minimum": 5007,
+          "total": 5007
+        },
+        "model_calls": [
+          5007
+        ],
+        "task_total": 5009,
+        "tool": {
+          "average": null,
+          "count": 0,
+          "maximum": null,
+          "minimum": null,
+          "total": null
+        },
+        "tools": []
+      },
+      "question": "Where does Click 8.4.1 build the missing-value message for a `Choice`, and how are the displayed choices normalized?",
+      "retrieval_no_match_observed": false,
+      "submitted_final_decision": null,
+      "success": false,
+      "task_id": "agent-eval-agent-click-choice-message-001-cef095dd-4351-487f-89c7-ce0b98aadfc4",
+      "tool_attempts": {
+        "count": 0,
+        "limit": 6,
+        "names": [],
+        "within_limit": true
+      },
+      "trace": {
+        "events": [
+          {
+            "available_tools": [
+              "search_code",
+              "get_file_context"
+            ],
+            "elapsed_ms": null,
+            "event_type": "session",
+            "sequence": 1,
+            "task_id": "agent-eval-agent-click-choice-message-001-cef095dd-4351-487f-89c7-ce0b98aadfc4",
+            "user_task": "Where does Click 8.4.1 build the missing-value message for a `Choice`, and how are the displayed choices normalized?"
+          },
+          {
+            "elapsed_ms": null,
+            "event_type": "step",
+            "purpose": "Request the next model decision.",
+            "sequence": 2,
+            "step_number": 1,
+            "task_id": "agent-eval-agent-click-choice-message-001-cef095dd-4351-487f-89c7-ce0b98aadfc4"
+          },
+          {
+            "elapsed_ms": null,
+            "event_type": "model_request",
+            "model": "gpt-5.6-luna(high)",
+            "model_input": {
+              "current_task": "Where does Click 8.4.1 build the missing-value message for a `Choice`, and how are the displayed choices normalized?",
+              "evidence": [],
+              "remaining_tool_calls": 6,
+              "repository_hints": [
+                {
+                  "aliases": [
+                    "Click",
+                    "pallets/click",
+                    "github.com/pallets/click"
+                  ],
+                  "canonical_name": "click"
+                }
+              ],
+              "system_instruction": "Inspect only the supplied Click repository with the retrieval tools. Do not answer code questions from memory or caller narration. Use search_code to find relevant source and get_file_context when surrounding implementation is needed. Every factual final answer must include one or more exact citations in canonical repo/path:line form copied from successful Tool results. If no successful Tool evidence supports an answer, return a final answer with an empty evidence list.",
+              "tool_schemas": [
+                {
+                  "description": "Search indexed source code.",
+                  "input_schema": {
+                    "additionalProperties": false,
+                    "description": "Router-side contract for ``search_code``.",
+                    "properties": {
+                      "lang": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "title": "Lang"
+                      },
+                      "limit": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 1,
+                        "title": "Limit",
+                        "type": "integer"
+                      },
+                      "literal": {
+                        "default": false,
+                        "title": "Literal",
+                        "type": "boolean"
+                      },
+                      "path": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "title": "Path"
+                      },
+                      "query": {
+                        "minLength": 1,
+                        "title": "Query",
+                        "type": "string"
+                      },
+                      "repo": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Exact canonical indexed repository name from repository_hints; use null when no supplied hint applies and never invent a name.",
+                        "title": "Repo"
+                      }
+                    },
+                    "required": [
+                      "query"
+                    ],
+                    "title": "SearchCodeArguments",
+                    "type": "object"
+                  },
+                  "name": "search_code"
+                },
+                {
+                  "description": "Read source lines around a known repository location.",
+                  "input_schema": {
+                    "additionalProperties": false,
+                    "description": "Router-side contract for ``get_file_context``.",
+                    "properties": {
+                      "file_path": {
+                        "minLength": 1,
+                        "title": "File Path",
+                        "type": "string"
+                      },
+                      "line_number": {
+                        "minimum": 1,
+                        "title": "Line Number",
+                        "type": "integer"
+                      },
+                      "lines_after": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 0,
+                        "title": "Lines After",
+                        "type": "integer"
+                      },
+                      "lines_before": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 0,
+                        "title": "Lines Before",
+                        "type": "integer"
+                      },
+                      "repository": {
+                        "description": "Canonical repository name returned by search_code or supplied in repository_hints; never invent or rewrite it.",
+                        "minLength": 1,
+                        "title": "Repository",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "repository",
+                      "file_path",
+                      "line_number"
+                    ],
+                    "title": "GetFileContextArguments",
+                    "type": "object"
+                  },
+                  "name": "get_file_context"
+                }
+              ]
+            },
+            "request_id": "78ea901b-f1ab-47a7-8f64-f26a49458df9",
+            "sequence": 3,
+            "task_id": "agent-eval-agent-click-choice-message-001-cef095dd-4351-487f-89c7-ce0b98aadfc4"
+          },
+          {
+            "decision": null,
+            "elapsed_ms": 5007,
+            "error_type": "model_execution_error",
+            "event_type": "model_result",
+            "request_id": "78ea901b-f1ab-47a7-8f64-f26a49458df9",
+            "sequence": 4,
+            "status": "error",
+            "task_id": "agent-eval-agent-click-choice-message-001-cef095dd-4351-487f-89c7-ce0b98aadfc4"
+          },
+          {
+            "answer": "Model execution failed.",
+            "elapsed_ms": null,
+            "event_type": "final_answer",
+            "evidence": [],
+            "next_queries": [],
+            "sequence": 5,
+            "task_id": "agent-eval-agent-click-choice-message-001-cef095dd-4351-487f-89c7-ce0b98aadfc4",
+            "termination_reason": "model_execution_error",
+            "uncertainties": []
+          }
+        ],
+        "finalized": true,
+        "task_id": "agent-eval-agent-click-choice-message-001-cef095dd-4351-487f-89c7-ce0b98aadfc4"
+      },
+      "trace_integrity": {
+        "finalized_matches_terminal": true,
+        "model_pairs_complete": true,
+        "ok": true,
+        "sequences_continuous": true,
+        "task_ids_match": true,
+        "terminal_last": true,
+        "tool_pairs_complete": true,
+        "unique_terminal": true
+      }
+    },
+    {
+      "case_id": "agent-click-no-symbol-001",
+      "category": "negative_refusal",
+      "citations": [],
+      "evaluation_error": null,
+      "failure_category": "tool_or_service_unavailable",
+      "final_answer": {
+        "answer": "Model execution failed.",
+        "elapsed_ms": null,
+        "event_type": "final_answer",
+        "evidence": [],
+        "next_queries": [],
+        "sequence": 5,
+        "task_id": "agent-eval-agent-click-no-symbol-001-beedd5c6-4228-4339-a0ad-3442e42ba03b",
+        "termination_reason": "model_execution_error",
+        "uncertainties": []
+      },
+      "gold": {
+        "click_revision": "6eeb50e948ea136db145280f6f5dd52eca3fa7e5",
+        "expected_result": "insufficient_evidence",
+        "locations": [],
+        "reviewed_on": "2026-08-16"
+      },
+      "latency_ms": {
+        "model": {
+          "average": 5008.0,
+          "count": 1,
+          "maximum": 5008,
+          "minimum": 5008,
+          "total": 5008
+        },
+        "model_calls": [
+          5008
+        ],
+        "task_total": 5008,
+        "tool": {
+          "average": null,
+          "count": 0,
+          "maximum": null,
+          "minimum": null,
+          "total": null
+        },
+        "tools": []
+      },
+      "question": "Does Click 8.4.1 define a class or function named `ClickOptionRegistry`? Locate its source and explain its responsibility only if Tool evidence exists.",
+      "retrieval_no_match_observed": false,
+      "submitted_final_decision": null,
+      "success": false,
+      "task_id": "agent-eval-agent-click-no-symbol-001-beedd5c6-4228-4339-a0ad-3442e42ba03b",
+      "tool_attempts": {
+        "count": 0,
+        "limit": 6,
+        "names": [],
+        "within_limit": true
+      },
+      "trace": {
+        "events": [
+          {
+            "available_tools": [
+              "search_code",
+              "get_file_context"
+            ],
+            "elapsed_ms": null,
+            "event_type": "session",
+            "sequence": 1,
+            "task_id": "agent-eval-agent-click-no-symbol-001-beedd5c6-4228-4339-a0ad-3442e42ba03b",
+            "user_task": "Does Click 8.4.1 define a class or function named `ClickOptionRegistry`? Locate its source and explain its responsibility only if Tool evidence exists."
+          },
+          {
+            "elapsed_ms": null,
+            "event_type": "step",
+            "purpose": "Request the next model decision.",
+            "sequence": 2,
+            "step_number": 1,
+            "task_id": "agent-eval-agent-click-no-symbol-001-beedd5c6-4228-4339-a0ad-3442e42ba03b"
+          },
+          {
+            "elapsed_ms": null,
+            "event_type": "model_request",
+            "model": "gpt-5.6-luna(high)",
+            "model_input": {
+              "current_task": "Does Click 8.4.1 define a class or function named `ClickOptionRegistry`? Locate its source and explain its responsibility only if Tool evidence exists.",
+              "evidence": [],
+              "remaining_tool_calls": 6,
+              "repository_hints": [
+                {
+                  "aliases": [
+                    "Click",
+                    "pallets/click",
+                    "github.com/pallets/click"
+                  ],
+                  "canonical_name": "click"
+                }
+              ],
+              "system_instruction": "Inspect only the supplied Click repository with the retrieval tools. Do not answer code questions from memory or caller narration. Use search_code to find relevant source and get_file_context when surrounding implementation is needed. Every factual final answer must include one or more exact citations in canonical repo/path:line form copied from successful Tool results. If no successful Tool evidence supports an answer, return a final answer with an empty evidence list.",
+              "tool_schemas": [
+                {
+                  "description": "Search indexed source code.",
+                  "input_schema": {
+                    "additionalProperties": false,
+                    "description": "Router-side contract for ``search_code``.",
+                    "properties": {
+                      "lang": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "title": "Lang"
+                      },
+                      "limit": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 1,
+                        "title": "Limit",
+                        "type": "integer"
+                      },
+                      "literal": {
+                        "default": false,
+                        "title": "Literal",
+                        "type": "boolean"
+                      },
+                      "path": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "title": "Path"
+                      },
+                      "query": {
+                        "minLength": 1,
+                        "title": "Query",
+                        "type": "string"
+                      },
+                      "repo": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Exact canonical indexed repository name from repository_hints; use null when no supplied hint applies and never invent a name.",
+                        "title": "Repo"
+                      }
+                    },
+                    "required": [
+                      "query"
+                    ],
+                    "title": "SearchCodeArguments",
+                    "type": "object"
+                  },
+                  "name": "search_code"
+                },
+                {
+                  "description": "Read source lines around a known repository location.",
+                  "input_schema": {
+                    "additionalProperties": false,
+                    "description": "Router-side contract for ``get_file_context``.",
+                    "properties": {
+                      "file_path": {
+                        "minLength": 1,
+                        "title": "File Path",
+                        "type": "string"
+                      },
+                      "line_number": {
+                        "minimum": 1,
+                        "title": "Line Number",
+                        "type": "integer"
+                      },
+                      "lines_after": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 0,
+                        "title": "Lines After",
+                        "type": "integer"
+                      },
+                      "lines_before": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 0,
+                        "title": "Lines Before",
+                        "type": "integer"
+                      },
+                      "repository": {
+                        "description": "Canonical repository name returned by search_code or supplied in repository_hints; never invent or rewrite it.",
+                        "minLength": 1,
+                        "title": "Repository",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "repository",
+                      "file_path",
+                      "line_number"
+                    ],
+                    "title": "GetFileContextArguments",
+                    "type": "object"
+                  },
+                  "name": "get_file_context"
+                }
+              ]
+            },
+            "request_id": "46a503e7-3ead-4626-ba6d-33e9a1cd2302",
+            "sequence": 3,
+            "task_id": "agent-eval-agent-click-no-symbol-001-beedd5c6-4228-4339-a0ad-3442e42ba03b"
+          },
+          {
+            "decision": null,
+            "elapsed_ms": 5008,
+            "error_type": "model_execution_error",
+            "event_type": "model_result",
+            "request_id": "46a503e7-3ead-4626-ba6d-33e9a1cd2302",
+            "sequence": 4,
+            "status": "error",
+            "task_id": "agent-eval-agent-click-no-symbol-001-beedd5c6-4228-4339-a0ad-3442e42ba03b"
+          },
+          {
+            "answer": "Model execution failed.",
+            "elapsed_ms": null,
+            "event_type": "final_answer",
+            "evidence": [],
+            "next_queries": [],
+            "sequence": 5,
+            "task_id": "agent-eval-agent-click-no-symbol-001-beedd5c6-4228-4339-a0ad-3442e42ba03b",
+            "termination_reason": "model_execution_error",
+            "uncertainties": []
+          }
+        ],
+        "finalized": true,
+        "task_id": "agent-eval-agent-click-no-symbol-001-beedd5c6-4228-4339-a0ad-3442e42ba03b"
+      },
+      "trace_integrity": {
+        "finalized_matches_terminal": true,
+        "model_pairs_complete": true,
+        "ok": true,
+        "sequences_continuous": true,
+        "task_ids_match": true,
+        "terminal_last": true,
+        "tool_pairs_complete": true,
+        "unique_terminal": true
+      }
+    },
+    {
+      "case_id": "agent-click-no-origin-registry-001",
+      "category": "negative_refusal",
+      "citations": [],
+      "evaluation_error": null,
+      "failure_category": "tool_or_service_unavailable",
+      "final_answer": {
+        "answer": "Model execution failed.",
+        "elapsed_ms": null,
+        "event_type": "final_answer",
+        "evidence": [],
+        "next_queries": [],
+        "sequence": 5,
+        "task_id": "agent-eval-agent-click-no-origin-registry-001-4201c4c1-0448-4101-bbbf-aac156c826cd",
+        "termination_reason": "model_execution_error",
+        "uncertainties": []
+      },
+      "gold": {
+        "click_revision": "6eeb50e948ea136db145280f6f5dd52eca3fa7e5",
+        "expected_result": "insufficient_evidence",
+        "locations": [],
+        "reviewed_on": "2026-08-16"
+      },
+      "latency_ms": {
+        "model": {
+          "average": 5008.0,
+          "count": 1,
+          "maximum": 5008,
+          "minimum": 5008,
+          "total": 5008
+        },
+        "model_calls": [
+          5008
+        ],
+        "task_total": 5009,
+        "tool": {
+          "average": null,
+          "count": 0,
+          "maximum": null,
+          "minimum": null,
+          "total": null
+        },
+        "tools": []
+      },
+      "question": "Where is `ParameterOriginRegistry` implemented in Click 8.4.1, and how does it track parameter origins? Answer only if the repository tools return supporting source.",
+      "retrieval_no_match_observed": false,
+      "submitted_final_decision": null,
+      "success": false,
+      "task_id": "agent-eval-agent-click-no-origin-registry-001-4201c4c1-0448-4101-bbbf-aac156c826cd",
+      "tool_attempts": {
+        "count": 0,
+        "limit": 6,
+        "names": [],
+        "within_limit": true
+      },
+      "trace": {
+        "events": [
+          {
+            "available_tools": [
+              "search_code",
+              "get_file_context"
+            ],
+            "elapsed_ms": null,
+            "event_type": "session",
+            "sequence": 1,
+            "task_id": "agent-eval-agent-click-no-origin-registry-001-4201c4c1-0448-4101-bbbf-aac156c826cd",
+            "user_task": "Where is `ParameterOriginRegistry` implemented in Click 8.4.1, and how does it track parameter origins? Answer only if the repository tools return supporting source."
+          },
+          {
+            "elapsed_ms": null,
+            "event_type": "step",
+            "purpose": "Request the next model decision.",
+            "sequence": 2,
+            "step_number": 1,
+            "task_id": "agent-eval-agent-click-no-origin-registry-001-4201c4c1-0448-4101-bbbf-aac156c826cd"
+          },
+          {
+            "elapsed_ms": null,
+            "event_type": "model_request",
+            "model": "gpt-5.6-luna(high)",
+            "model_input": {
+              "current_task": "Where is `ParameterOriginRegistry` implemented in Click 8.4.1, and how does it track parameter origins? Answer only if the repository tools return supporting source.",
+              "evidence": [],
+              "remaining_tool_calls": 6,
+              "repository_hints": [
+                {
+                  "aliases": [
+                    "Click",
+                    "pallets/click",
+                    "github.com/pallets/click"
+                  ],
+                  "canonical_name": "click"
+                }
+              ],
+              "system_instruction": "Inspect only the supplied Click repository with the retrieval tools. Do not answer code questions from memory or caller narration. Use search_code to find relevant source and get_file_context when surrounding implementation is needed. Every factual final answer must include one or more exact citations in canonical repo/path:line form copied from successful Tool results. If no successful Tool evidence supports an answer, return a final answer with an empty evidence list.",
+              "tool_schemas": [
+                {
+                  "description": "Search indexed source code.",
+                  "input_schema": {
+                    "additionalProperties": false,
+                    "description": "Router-side contract for ``search_code``.",
+                    "properties": {
+                      "lang": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "title": "Lang"
+                      },
+                      "limit": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 1,
+                        "title": "Limit",
+                        "type": "integer"
+                      },
+                      "literal": {
+                        "default": false,
+                        "title": "Literal",
+                        "type": "boolean"
+                      },
+                      "path": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "title": "Path"
+                      },
+                      "query": {
+                        "minLength": 1,
+                        "title": "Query",
+                        "type": "string"
+                      },
+                      "repo": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Exact canonical indexed repository name from repository_hints; use null when no supplied hint applies and never invent a name.",
+                        "title": "Repo"
+                      }
+                    },
+                    "required": [
+                      "query"
+                    ],
+                    "title": "SearchCodeArguments",
+                    "type": "object"
+                  },
+                  "name": "search_code"
+                },
+                {
+                  "description": "Read source lines around a known repository location.",
+                  "input_schema": {
+                    "additionalProperties": false,
+                    "description": "Router-side contract for ``get_file_context``.",
+                    "properties": {
+                      "file_path": {
+                        "minLength": 1,
+                        "title": "File Path",
+                        "type": "string"
+                      },
+                      "line_number": {
+                        "minimum": 1,
+                        "title": "Line Number",
+                        "type": "integer"
+                      },
+                      "lines_after": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 0,
+                        "title": "Lines After",
+                        "type": "integer"
+                      },
+                      "lines_before": {
+                        "default": 20,
+                        "maximum": 100,
+                        "minimum": 0,
+                        "title": "Lines Before",
+                        "type": "integer"
+                      },
+                      "repository": {
+                        "description": "Canonical repository name returned by search_code or supplied in repository_hints; never invent or rewrite it.",
+                        "minLength": 1,
+                        "title": "Repository",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "repository",
+                      "file_path",
+                      "line_number"
+                    ],
+                    "title": "GetFileContextArguments",
+                    "type": "object"
+                  },
+                  "name": "get_file_context"
+                }
+              ]
+            },
+            "request_id": "a6f3539f-a260-4957-a9ec-a315ffa5e6f4",
+            "sequence": 3,
+            "task_id": "agent-eval-agent-click-no-origin-registry-001-4201c4c1-0448-4101-bbbf-aac156c826cd"
+          },
+          {
+            "decision": null,
+            "elapsed_ms": 5008,
+            "error_type": "model_execution_error",
+            "event_type": "model_result",
+            "request_id": "a6f3539f-a260-4957-a9ec-a315ffa5e6f4",
+            "sequence": 4,
+            "status": "error",
+            "task_id": "agent-eval-agent-click-no-origin-registry-001-4201c4c1-0448-4101-bbbf-aac156c826cd"
+          },
+          {
+            "answer": "Model execution failed.",
+            "elapsed_ms": null,
+            "event_type": "final_answer",
+            "evidence": [],
+            "next_queries": [],
+            "sequence": 5,
+            "task_id": "agent-eval-agent-click-no-origin-registry-001-4201c4c1-0448-4101-bbbf-aac156c826cd",
+            "termination_reason": "model_execution_error",
+            "uncertainties": []
+          }
+        ],
+        "finalized": true,
+        "task_id": "agent-eval-agent-click-no-origin-registry-001-4201c4c1-0448-4101-bbbf-aac156c826cd"
+      },
+      "trace_integrity": {
+        "finalized_matches_terminal": true,
+        "model_pairs_complete": true,
+        "ok": true,
+        "sequences_continuous": true,
+        "task_ids_match": true,
+        "terminal_last": true,
+        "tool_pairs_complete": true,
+        "unique_terminal": true
+      }
+    }
+  ],
+  "dataset": {
+    "answerable_cases": 8,
+    "case_count": 10,
+    "click_revision": "6eeb50e948ea136db145280f6f5dd52eca3fa7e5",
+    "frozen_before_model_calls": true,
+    "insufficient_evidence_cases": 2,
+    "path": "evaluation/agent_cases.jsonl",
+    "sha256": "09b3e346686d550c09c3b361ec16d00e51cac8fd257850593901ab212c2da129"
+  },
+  "evaluation": "frozen_click_agent_eval",
+  "execution": {
+    "case_execution": "sequential_one_pass",
+    "finished_at": "2026-08-15T16:59:21.753038+00:00",
+    "model": "gpt-5.6-luna(high)",
+    "preflight": {
+      "checkout_revision": "6eeb50e948ea136db145280f6f5dd52eca3fa7e5",
+      "declared_index_revision": "6eeb50e948ea136db145280f6f5dd52eca3fa7e5",
+      "index_revision_check": {
+        "method": "operator-declared revision plus pinned positive and negative content probes",
+        "server_commit_exposed": false,
+        "status": "passed"
+      },
+      "pinned_content_probes": [
+        {
+          "id": "echo-definition",
+          "passed": true
+        },
+        {
+          "id": "choice-message",
+          "passed": true
+        },
+        {
+          "id": "negative-symbol",
+          "passed": true
+        }
+      ],
+      "repository_zoekt_name": "click",
+      "retrieval_dataset_validation": {
+        "case_count": 18,
+        "status": "passed"
+      }
+    },
+    "reruns_or_best_of_selection": false,
+    "started_at": "2026-08-15T16:58:31.316126+00:00",
+    "tool_attempt_limit_per_case": 6
+  },
+  "generated_at": "2026-08-15T16:59:21.753038+00:00",
+  "redaction_evidence": {
+    "configured_sensitive_values_absent": true,
+    "transport_and_local_path_fields_absent": true
+  },
+  "schema_version": 1,
+  "summary": {
+    "agent_gate": {
+      "all_traces_complete": true,
+      "citation_rate_met": false,
+      "citation_rate_threshold": 0.95,
+      "met": false,
+      "minimum_cases_met": true,
+      "tool_limit_met": true
+    },
+    "citation_validity": {
+      "denominator": 0,
+      "numerator": 0,
+      "rate": null
+    },
+    "failures": {
+      "tool_or_service_unavailable": {
+        "case_ids": [
+          "agent-click-echo-001",
+          "agent-click-open-file-001",
+          "agent-click-format-filename-001",
+          "agent-click-progressbar-001",
+          "agent-click-default-map-001",
+          "agent-click-extra-args-001",
+          "agent-click-command-normalize-001",
+          "agent-click-choice-message-001",
+          "agent-click-no-symbol-001",
+          "agent-click-no-origin-registry-001"
+        ],
+        "count": 10
+      }
+    },
+    "latency_ms": {
+      "model_calls": {
+        "average": 5041.8,
+        "count": 10,
+        "maximum": 5335,
+        "minimum": 5007,
+        "total": 50418
+      },
+      "tasks": {
+        "average": 5042.8,
+        "count": 10,
+        "maximum": 5336,
+        "minimum": 5008,
+        "total": 50428
+      },
+      "tools": {
+        "average": null,
+        "count": 0,
+        "maximum": null,
+        "minimum": null,
+        "total": null
+      }
+    },
+    "task_success_rate": {
+      "denominator": 10,
+      "numerator": 0,
+      "rate": 0.0
+    },
+    "termination_reason_distribution": {
+      "model_execution_error": 10
+    },
+    "tool_attempts": {
+      "average": 0.0,
+      "denominator": 10,
+      "distribution": {
+        "0": 10
+      },
+      "maximum": 0,
+      "within_limit": 10
+    },
+    "trace_integrity": {
+      "denominator": 10,
+      "numerator": 10,
+      "rate": 1.0
+    }
+  },
+  "verdict": {
+    "index_server_commit_not_exposed": true,
+    "m3_exit_criteria_met": false,
+    "task_success_has_no_prefilled_threshold": true
+  }
+}

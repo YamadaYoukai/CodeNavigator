@@ -158,6 +158,50 @@ Trace。冒烟脚本会在写报告前验证已配置的 Key/Base URL 不在序�
 索引后，按[真实 Tool 证据](docs/evidence/2026-08-07-real-model-result-search-tool.md)中的命令
 运行；该入口不读取模型凭据，也不重新生成原始模型 Trace。
 
+### 冻结的 Agent Eval
+
+独立 Agent 评测集位于
+[`evaluation/agent_cases.jsonl`](evaluation/agent_cases.jsonl)，固定为 Click 8.4.1
+revision `6eeb50e948ea136db145280f6f5dd52eca3fa7e5` 上人工复核的 10 条自然语言任务：
+8 条可回答、2 条应以信息不足收口。冻结 SHA-256 为
+`09b3e346686d550c09c3b361ec16d00e51cac8fd257850593901ab212c2da129`。
+真实运行前先做不调用模型或 Zoekt 的契约校验：
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=. .venv/bin/python \
+  evaluation/run_agent_eval.py --validate-only
+```
+
+真实入口要求调用方提供 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL`，以及由
+索引创建方确认的 `ZOEKT_INDEX_REVISION`；同时要求 `ZOEKT_URL`、
+`REPOSITORY_ROOT/click`、checkout revision 和 `git config zoekt.name` 一致。Runner 会在
+任何模型调用前执行固定的正向/负向索引探针，并拒绝非默认文件或 SHA-256 不匹配的真实
+评测。完整 10 条按文件顺序各运行一次，不提供 `--max-cases`、重试或 best-of 选项：
+
+```bash
+set -a
+source .secrets/openai-smoke.env
+set +a
+export ZOEKT_INDEX_REVISION=6eeb50e948ea136db145280f6f5dd52eca3fa7e5
+
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=. .venv/bin/python \
+  evaluation/run_agent_eval.py \
+  --no-proxy-base-url \
+  --out evaluation/reports/agent-eval-YYYY-MM-DD.json \
+  --summary-out evaluation/reports/agent-eval-YYYY-MM-DD.md
+```
+
+逐题 JSON 保留终态、Tool 尝试与名称序列、模型提交的引用、当前任务成功 Tool 来源校验、
+金标范围匹配、Trace 不变量、模型/Tool/任务耗时和稳定失败分类；汇总指标只从这些明细
+重算。写盘前会断言 API Key、Base URL、本机仓库路径和传输/Provider 原始字段均不存在。
+
+2026-08-16 的唯一真实轮次保存在
+[`agent-eval-2026-08-16.json`](evaluation/reports/agent-eval-2026-08-16.json) 和
+[`agent-eval-2026-08-16.md`](evaluation/reports/agent-eval-2026-08-16.md)。该轮 10/10
+均在首次模型调用处以 `model_execution_error` 终止，任务成功率为 0/10，Tool 尝试为
+0，引用分母为 0，Trace 完整性为 10/10；结果未重跑或用于修改 Prompt、检索和金标，
+因此 M3 退出门槛未达到。
+
 ### 配置 Zoekt 地址
 
 默认连接 `http://localhost:6070`。如果 Zoekt 运行在其他地址，可以设置：

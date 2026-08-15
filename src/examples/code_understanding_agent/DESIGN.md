@@ -70,6 +70,39 @@ unsupported answer with one stable information-insufficient message and clears
 last event; no model or Tool call follows it. This gate is deliberately a
 narrow provenance check, not a general claim verifier.
 
+### Frozen agent evaluation boundary
+
+`evaluation/agent_cases.jsonl` is a separate Agent-level dataset rather than a
+copy of the retrieval queries. Its ten natural-language tasks, expected result
+types, reviewed source ranges, pinned Click revision, and file SHA-256 are
+validated before any real model call. The real CLI accepts only the default
+frozen file and has no partial-run, retry, or best-of switch. Cases execute
+sequentially once in file order; results never feed back into the system
+instruction, Tool descriptions, retrieval rules, or gold data.
+
+Every case record retains the task and gold identifier, `task_id`, structured
+terminal, submitted final decision, attempted Tool count and name sequence,
+per-citation parse/provenance/gold checks, recomputed Trace invariants, observed
+model/Tool/task latency, and one stable raw failure category. Citation metrics
+include rejected citations from the model's final decision even though the
+runtime correctly clears them from an `insufficient_evidence` terminal. Empty
+denominators remain `null`; the evaluator does not manufacture a passing rate.
+
+Aggregate success, termination, Tool, citation, Trace, failure, and latency
+metrics are pure recomputations from case details. The report gate requires at
+least ten executed cases, every Tool count at most six, complete traces, a
+non-empty citation denominator, and citation validity at least 95%. Task
+success has no prefilled threshold and is always reported as an observed
+fraction. Environment preflight separately verifies the checkout, declared
+index revision, exact `zoekt.name`, pinned positive/negative index probes, and
+the existing 18-case retrieval data contract.
+
+Reports store no credentials, endpoint URL, local repository root, headers,
+raw exceptions, or Provider responses. The Zoekt server used here does not
+expose a build or embedded source revision, so index consistency is described
+only through the operator-declared revision and pinned content probes. This is
+an explicit limitation, not inferred metadata.
+
 ### Frozen termination matrix
 
 The terminal producer in every row is `AgentLoop`, which constructs the event
