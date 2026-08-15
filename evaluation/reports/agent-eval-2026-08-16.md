@@ -65,3 +65,7 @@ The companion JSON preserves every sanitized case trace, submitted final decisio
 - Dedicated Click index SHA-256: `4808aa83857204cb80cb934e7c8c37b215194a2bb92ecd8753298a7d3c263000`; it was built from the clean pinned checkout before the Agent run.
 - Raw detail report: `evaluation/reports/agent-eval-2026-08-16.json`; this Markdown file is the summary evidence.
 - Unfinished gate: the configured model service returned `model_execution_error` on every first call, leaving citation validity at `0/0 (n/a)` and task success at `0/10`. The frozen run was not repeated. M3 remains incomplete.
+
+## Later recovery retry
+
+After this first-round report was committed, the user explicitly authorized a recovery retry using the same frozen data, Prompt, retrieval behavior, and gold. The original JSON and metrics above remain the first-round evidence. See [Recovery Retry 01](agent-eval-2026-08-16-retry-01.md), which reached task success 3/10 and citation validity 6/20 (30%) but still did not meet the M3 citation threshold.

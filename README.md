@@ -195,12 +195,20 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=. .venv/bin/python \
 金标范围匹配、Trace 不变量、模型/Tool/任务耗时和稳定失败分类；汇总指标只从这些明细
 重算。写盘前会断言 API Key、Base URL、本机仓库路径和传输/Provider 原始字段均不存在。
 
-2026-08-16 的唯一真实轮次保存在
+2026-08-16 的首轮真实执行保存在
 [`agent-eval-2026-08-16.json`](evaluation/reports/agent-eval-2026-08-16.json) 和
 [`agent-eval-2026-08-16.md`](evaluation/reports/agent-eval-2026-08-16.md)。该轮 10/10
 均在首次模型调用处以 `model_execution_error` 终止，任务成功率为 0/10，Tool 尝试为
-0，引用分母为 0，Trace 完整性为 10/10；结果未重跑或用于修改 Prompt、检索和金标，
-因此 M3 退出门槛未达到。
+0，引用分母为 0，Trace 完整性为 10/10。
+
+模型服务恢复后，用户明确授权使用相同冻结数据、Prompt、检索和金标执行一次独立恢复
+重试；结果保存在
+[`agent-eval-2026-08-16-retry-01.json`](evaluation/reports/agent-eval-2026-08-16-retry-01.json)
+和
+[`agent-eval-2026-08-16-retry-01.md`](evaluation/reports/agent-eval-2026-08-16-retry-01.md)。
+重试轮任务成功率为 3/10，引用有效率 6/20（30%），Trace 完整性 10/10，每题 Tool
+上限全部满足。6 个正向答案因模型提交范围格式引用而 fail closed，另 1 条为 Tool 错误；
+没有根据结果修改机制或执行第三轮，M3 退出门槛仍未达到。
 
 ### 配置 Zoekt 地址
 
