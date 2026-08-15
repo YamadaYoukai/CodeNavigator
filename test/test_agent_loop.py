@@ -88,9 +88,10 @@ def test_should_run_two_tool_success_path_into_one_terminal_answer() -> None:
         return {
             "matches": [
                 {
-                    "repository": "example/repository",
-                    "file_path": "src/retry.py",
-                    "line_number": 12,
+                    "repo": "example/repository",
+                    "path": "src/retry.py",
+                    "line": 12,
+                    "snippet": "class RetryPolicy:",
                 }
             ]
         }

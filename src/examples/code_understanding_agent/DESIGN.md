@@ -27,14 +27,14 @@ insertion, and budget consumption. The loop also counts attempted calls and
 never starts a seventh one. It does not retry, execute tools concurrently, or
 copy builder, router, or tool-step logic.
 
-One successful run has this exact event shape:
+One successful, evidence-backed run has this exact event shape:
 
 ```text
 Session
   -> Step(n)
   -> ModelRequest(n) -> ModelResult(n)
   -> [ToolCall(n) -> ToolResult(n) -> Step(n+1) -> ...]
-  -> FinalAnswer(termination_reason="completed")
+  -> FinalAnswer(termination_reason="completed", evidence=[...])
 ```
 
 The loop appends one `Step` immediately before every model decision. The
@@ -43,6 +43,32 @@ existing router owns each correlated tool event pair, and `TraceRecorder`
 continues to own `task_id`, continuous sequence assignment, and terminal-state
 enforcement. A `FinalAnswerDecision` is copied into one `FinalAnswer`; that
 terminal event is last, and no model or tool call is permitted afterward.
+
+### Final-answer evidence gate
+
+`FinalAnswerDecision.evidence` is accepted only when it is non-empty and every
+entry exactly matches a canonical `repo/path:line` string derived from this
+task's trace. The allowed set comes only from adjacent, correlated
+`ToolCall -> ToolResult(status="success")` pairs recorded under the current
+`task_id` before the terminal event. Caller-supplied `ContextState.evidence`,
+history, model-authored citations, failed Tool results, other tasks, and
+incomplete event pairs do not authorize a citation.
+
+`search_code` authorizes each exact `repo`, `path`, and positive `line` in its
+normalized `matches`. `get_file_context` authorizes each positive line in the
+normalized result's actual inclusive `start_line -> end_line` range for its
+exact `repository/file_path`. The validator constructs the complete strings
+from these fields and uses exact set membership. It does not parse a submitted
+string to guess repository/path boundaries, and it has no case, basename, URL,
+suffix, or substring fallback.
+
+An empty evidence list, malformed or forged location, out-of-range context
+line, or mixed valid/invalid list fails closed as
+`termination_reason="insufficient_evidence"`. The terminal replaces the model's
+unsupported answer with one stable information-insufficient message and clears
+`evidence`, `uncertainties`, and `next_queries`. It remains the unique final and
+last event; no model or Tool call follows it. This gate is deliberately a
+narrow provenance check, not a general claim verifier.
 
 ### Frozen termination matrix
 
@@ -55,7 +81,8 @@ responses, or transport details.
 
 | Path | `termination_reason` | Events retained before the terminal | Calls allowed after trigger | Status |
 | --- | --- | --- | --- | --- |
-| Structured final answer | `completed` | Session; every Step; all correlated model and successful tool pairs | None | Implemented |
+| Structured final answer with non-empty, fully traceable evidence | `completed` | Session; every Step; all correlated model and successful tool pairs | None | Implemented |
+| Empty, malformed, forged, out-of-range, or mixed final evidence | `insufficient_evidence` | Events through the successful `ModelResult` containing the rejected final decision | None | Implemented |
 | Tool budget exhausted | `tool_budget_exhausted` | Events through the model result that requested the disallowed call; no ToolCall or ToolResult for it | None | Implemented |
 | Model execution failure | `model_execution_error` | Current Step, ModelRequest, and its error ModelResult, plus all earlier events | None; no retry | Implemented |
 | Invalid model output | `invalid_model_output` | Current Step, ModelRequest, and its error ModelResult, plus all earlier events | None; no retry | Implemented |

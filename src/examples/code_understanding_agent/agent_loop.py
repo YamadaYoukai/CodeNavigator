@@ -15,6 +15,7 @@ from .events import (
     ToolCall,
     ToolResult,
 )
+from .final_answer_evidence import validate_final_answer_evidence
 from .model_boundary import FinalAnswerDecision, ModelClient, ToolCallDecision
 from .model_errors import ModelBoundaryError, ModelErrorType
 from .tool_router import GET_FILE_CONTEXT, SEARCH_CODE, ToolErrorCode
@@ -29,6 +30,7 @@ from .trace import TraceRecorder
 MAX_TOOL_CALLS_PER_TASK = 6
 
 FailureTerminationReason: TypeAlias = Literal[
+    "insufficient_evidence",
     "tool_budget_exhausted",
     "model_execution_error",
     "invalid_model_output",
@@ -39,6 +41,9 @@ FailureTerminationReason: TypeAlias = Literal[
 ]
 
 _FAILURE_ANSWERS: dict[FailureTerminationReason, str] = {
+    "insufficient_evidence": (
+        "Insufficient verified tool evidence is available to answer the task."
+    ),
     "tool_budget_exhausted": "The tool-call budget was exhausted.",
     "model_execution_error": "Model execution failed.",
     "invalid_model_output": "The model returned an invalid decision.",
@@ -144,6 +149,17 @@ class AgentLoop:
                 )
 
             if isinstance(decision, FinalAnswerDecision):
+                evidence_validation = validate_final_answer_evidence(
+                    decision.evidence,
+                    events=self._trace.events,
+                    task_id=self._trace.task_id,
+                )
+                if not evidence_validation.is_valid:
+                    return self._finish_failure(
+                        "insufficient_evidence",
+                        state=state,
+                        tool_calls_used=tool_calls_used,
+                    )
                 recorded_final = self._trace.finalize(
                     FinalAnswer(
                         answer=decision.answer,

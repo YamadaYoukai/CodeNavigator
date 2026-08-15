@@ -20,6 +20,11 @@ from .events import (
     ToolCall,
     ToolResult,
 )
+from .final_answer_evidence import (
+    FinalAnswerEvidenceValidation,
+    collect_allowed_final_answer_evidence,
+    validate_final_answer_evidence,
+)
 from .model_boundary import (
     FakeModel,
     FinalAnswerDecision,
@@ -69,6 +74,7 @@ __all__ = [
     "FakeModel",
     "FinalAnswer",
     "FinalAnswerDecision",
+    "FinalAnswerEvidenceValidation",
     "ALLOWED_TOOL_NAMES",
     "GET_FILE_CONTEXT",
     "GetFileContextArguments",
@@ -110,4 +116,6 @@ __all__ = [
     "build_context",
     "build_messages",
     "build_tools",
+    "collect_allowed_final_answer_evidence",
+    "validate_final_answer_evidence",
 ]
