@@ -1,0 +1,195 @@
+{
+  "schema_version": 1,
+  "frozen_at": "2026-08-16",
+  "source_report": "evaluation/reports/agent-eval-2026-08-16-retry-01.json",
+  "source_report_sha256": "b4fa733f3133ad8377799e0db5ac986c8f08342bae8d13873902b2494054671c",
+  "dataset_sha256": "09b3e346686d550c09c3b361ec16d00e51cac8fd257850593901ab212c2da129",
+  "selection_rule": "failure_category == model_judgment_failure and at least one submitted citation has parse.error == invalid_positive_line",
+  "case_count": 6,
+  "interpretation": {
+    "model_output": "Exact submitted_final_decision copied from the source report.",
+    "expected_single_line_citations": "Human-reviewed canonical single-line evidence supported by the captured successful Tool trace. This is a reference output for the next experiment, not a change to frozen gold.",
+    "strict_runtime_rule": "Every submitted citation must remain an exact fact from the current task's correlated successful Tool results. No range parsing, coercion, clamping, or repair is allowed."
+  },
+  "cases": [
+    {
+      "case_id": "agent-click-open-file-001",
+      "model_output": {
+        "answer": "Click 8.4.1 implements `open_file` in `src/click/utils.py:370-416`. It accepts `filename`, `mode`, `encoding`, `errors`, `lazy`, and `atomic`. With `lazy=True`, it returns a `LazyFile`, passing through `atomic`; otherwise it calls `open_stream` immediately. If `open_stream` indicates the stream should not be closed—such as standard input/output for `'-'`—the result is wrapped in `KeepOpenFile` so context-manager use does not close the standard stream. `LazyFile` handles `'-'` by calling `open_stream`, while ordinary files defer opening for write modes; read modes are briefly opened and closed first to catch early access errors. The lazy wrapper opens on first access and converts `OSError` to `FileError`. Atomic mode is passed to `open_stream`, whose documented behavior is to write to a temporary file and replace the target on close.",
+        "decision_type": "final_answer",
+        "evidence": [
+          "click/src/click/utils.py:370-416",
+          "click/src/click/utils.py:378-403",
+          "click/src/click/utils.py:113-177",
+          "click/src/click/utils.py:184-204"
+        ],
+        "next_queries": [],
+        "uncertainties": [
+          "The retrieved context locates the `open_file` and `LazyFile` implementations but does not include the body of `open_stream`, where the detailed `'-'` stream selection and atomic replacement logic are implemented."
+        ]
+      },
+      "expected_single_line_citations": [
+        {"repo": "click", "path": "src/click/utils.py", "line": 370},
+        {"repo": "click", "path": "src/click/utils.py", "line": 382},
+        {"repo": "click", "path": "src/click/utils.py", "line": 398},
+        {"repo": "click", "path": "src/click/utils.py", "line": 401},
+        {"repo": "click", "path": "src/click/utils.py", "line": 406},
+        {"repo": "click", "path": "src/click/utils.py", "line": 411},
+        {"repo": "click", "path": "src/click/utils.py", "line": 413},
+        {"repo": "click", "path": "src/click/utils.py", "line": 142},
+        {"repo": "click", "path": "src/click/utils.py", "line": 169},
+        {"repo": "click", "path": "src/click/utils.py", "line": 188}
+      ],
+      "failure": {
+        "category": "model_judgment_failure",
+        "mechanism": "range_citation_not_exact_tool_fact",
+        "parse_error": "invalid_positive_line",
+        "runtime_termination": "insufficient_evidence"
+      }
+    },
+    {
+      "case_id": "agent-click-format-filename-001",
+      "model_output": {
+        "answer": "Click 8.4.1 makes filenames safe for UI display in `format_filename` at `src/click/utils.py:419-458`; `LazyFile` uses it when formatting an unopened file at `src/click/utils.py:159`. With `shorten=True`, it first keeps only the basename; otherwise it calls `os.fspath`. Byte filenames are decoded using the filesystem encoding with `errors=\"replace\"`. String/path-like filenames are encoded as UTF-8 with `surrogateescape`, then decoded as UTF-8 with `errors=\"replace\"`. Thus invalid bytes and surrogate escapes become the Unicode replacement character `�`, avoiding failures when formatting the name for display. The function's documentation notes that such values could otherwise fail when written to a strict-error stream.",
+        "decision_type": "final_answer",
+        "evidence": [
+          "click/src/click/utils.py:159",
+          "click/src/click/utils.py:419-458"
+        ],
+        "next_queries": [],
+        "uncertainties": []
+      },
+      "expected_single_line_citations": [
+        {"repo": "click", "path": "src/click/utils.py", "line": 159},
+        {"repo": "click", "path": "src/click/utils.py", "line": 419},
+        {"repo": "click", "path": "src/click/utils.py", "line": 423},
+        {"repo": "click", "path": "src/click/utils.py", "line": 446},
+        {"repo": "click", "path": "src/click/utils.py", "line": 451},
+        {"repo": "click", "path": "src/click/utils.py", "line": 454}
+      ],
+      "failure": {
+        "category": "model_judgment_failure",
+        "mechanism": "range_citation_not_exact_tool_fact",
+        "parse_error": "invalid_positive_line",
+        "runtime_termination": "insufficient_evidence"
+      }
+    },
+    {
+      "case_id": "agent-click-default-map-001",
+      "model_output": {
+        "answer": "`Context.lookup_default` reads `default_map` after `_default_map_has(name)` succeeds: it asserts `self.default_map` is not `None`, then retrieves `value = self.default_map[name]`. If no value is present, it returns `None`. With `call=False`, a callable default is not invoked; the callable itself is returned instead. With `call=True`, callable defaults are called and their result is returned.",
+        "decision_type": "final_answer",
+        "evidence": [
+          "click/src/click/core.py:761-771",
+          "click/src/click/core.py:735-739"
+        ],
+        "next_queries": [],
+        "uncertainties": []
+      },
+      "expected_single_line_citations": [
+        {"repo": "click", "path": "src/click/core.py", "line": 735},
+        {"repo": "click", "path": "src/click/core.py", "line": 751},
+        {"repo": "click", "path": "src/click/core.py", "line": 755},
+        {"repo": "click", "path": "src/click/core.py", "line": 761},
+        {"repo": "click", "path": "src/click/core.py", "line": 766},
+        {"repo": "click", "path": "src/click/core.py", "line": 768},
+        {"repo": "click", "path": "src/click/core.py", "line": 771}
+      ],
+      "failure": {
+        "category": "model_judgment_failure",
+        "mechanism": "range_citation_not_exact_tool_fact",
+        "parse_error": "invalid_positive_line",
+        "runtime_termination": "insufficient_evidence"
+      }
+    },
+    {
+      "case_id": "agent-click-extra-args-001",
+      "model_output": {
+        "answer": "Click 8.4.1 produces the error in `Command.parse_args`, after parameter values have been processed. It raises the error only when leftover `args` exist, `ctx.allow_extra_args` is false, and `ctx.resilient_parsing` is false. The singular message, `Got unexpected extra argument (...)`, is selected when exactly one leftover argument exists (`len(args) == 1`); the plural message, `Got unexpected extra arguments (...)`, is selected for any other positive number of leftover arguments. The leftover arguments are joined into the message and passed to `ctx.fail`.",
+        "decision_type": "final_answer",
+        "evidence": [
+          "click/src/click/core.py:1281-1288"
+        ],
+        "next_queries": [],
+        "uncertainties": []
+      },
+      "expected_single_line_citations": [
+        {"repo": "click", "path": "src/click/core.py", "line": 1281},
+        {"repo": "click", "path": "src/click/core.py", "line": 1282},
+        {"repo": "click", "path": "src/click/core.py", "line": 1284},
+        {"repo": "click", "path": "src/click/core.py", "line": 1285},
+        {"repo": "click", "path": "src/click/core.py", "line": 1286}
+      ],
+      "failure": {
+        "category": "model_judgment_failure",
+        "mechanism": "range_citation_not_exact_tool_fact",
+        "parse_error": "invalid_positive_line",
+        "runtime_termination": "insufficient_evidence"
+      }
+    },
+    {
+      "case_id": "agent-click-command-normalize-001",
+      "model_output": {
+        "answer": "Click 8.4.1 resolves a subcommand in two attempts. `resolve_command` first converts the first argument with `make_str` and calls `get_command` using it unchanged. If that lookup fails and `ctx.token_normalize_func` is set, it normalizes the command name, retries `get_command` with the normalized name, and returns the normalized name along with the resolved command and remaining arguments. If the retry also fails, Click optionally reparses option-like input and raises `NoSuchCommand`. This behavior is implemented in `MultiCommand.resolve_command` in `src/click/core.py`; chained subcommand processing invokes it from the loop immediately above. Contexts also inherit `token_normalize_func` from their parent when one is not explicitly supplied.",
+        "decision_type": "final_answer",
+        "evidence": [
+          "click/src/click/core.py:1946-1970",
+          "click/src/click/core.py:1927-1938",
+          "click/src/click/core.py:427-432"
+        ],
+        "next_queries": [],
+        "uncertainties": []
+      },
+      "expected_single_line_citations": [
+        {"repo": "click", "path": "src/click/core.py", "line": 1928},
+        {"repo": "click", "path": "src/click/core.py", "line": 1946},
+        {"repo": "click", "path": "src/click/core.py", "line": 1949},
+        {"repo": "click", "path": "src/click/core.py", "line": 1952},
+        {"repo": "click", "path": "src/click/core.py", "line": 1956},
+        {"repo": "click", "path": "src/click/core.py", "line": 1957},
+        {"repo": "click", "path": "src/click/core.py", "line": 1958},
+        {"repo": "click", "path": "src/click/core.py", "line": 1966},
+        {"repo": "click", "path": "src/click/core.py", "line": 1970},
+        {"repo": "click", "path": "src/click/core.py", "line": 427},
+        {"repo": "click", "path": "src/click/core.py", "line": 428}
+      ],
+      "failure": {
+        "category": "model_judgment_failure",
+        "mechanism": "range_citation_not_exact_tool_fact",
+        "parse_error": "invalid_positive_line",
+        "runtime_termination": "insufficient_evidence"
+      }
+    },
+    {
+      "case_id": "agent-click-choice-message-001",
+      "model_output": {
+        "answer": "Click 8.4.1 builds the missing-value message in `Choice.get_missing_message` at `src/click/types.py:358-366`. It formats `\"Choose from:\\n\\t{choices}\"`, joining the normalized choice values with `\",\\n\\t\"`. Those displayed values come from `_normalized_mapping`, which maps each original choice through `normalize_choice` (`src/click/types.py:302-318`). Normalization uses an enum member’s `.name` or otherwise `str(choice)`, applies `ctx.token_normalize_func` when configured, and then applies `.casefold()` when `case_sensitive` is false (`src/click/types.py:320-338`).",
+        "decision_type": "final_answer",
+        "evidence": [
+          "click/src/click/types.py:358-366",
+          "click/src/click/types.py:302-318",
+          "click/src/click/types.py:320-338"
+        ],
+        "next_queries": [],
+        "uncertainties": []
+      },
+      "expected_single_line_citations": [
+        {"repo": "click", "path": "src/click/types.py", "line": 302},
+        {"repo": "click", "path": "src/click/types.py", "line": 312},
+        {"repo": "click", "path": "src/click/types.py", "line": 320},
+        {"repo": "click", "path": "src/click/types.py", "line": 330},
+        {"repo": "click", "path": "src/click/types.py", "line": 332},
+        {"repo": "click", "path": "src/click/types.py", "line": 335},
+        {"repo": "click", "path": "src/click/types.py", "line": 358},
+        {"repo": "click", "path": "src/click/types.py", "line": 364},
+        {"repo": "click", "path": "src/click/types.py", "line": 365}
+      ],
+      "failure": {
+        "category": "model_judgment_failure",
+        "mechanism": "range_citation_not_exact_tool_fact",
+        "parse_error": "invalid_positive_line",
+        "runtime_termination": "insufficient_evidence"
+      }
+    }
+  ]
+}

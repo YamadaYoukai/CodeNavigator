@@ -210,6 +210,14 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=. .venv/bin/python \
 上限全部满足。6 个正向答案因模型提交范围格式引用而 fail closed，另 1 条为 Tool 错误；
 没有根据结果修改机制或执行第三轮，M3 退出门槛仍未达到。
 
+这 6 条范围引用失败已按原始报告哈希冻结在
+[`agent-eval-range-citation-failures-2026-08-16.json`](evaluation/fixtures/agent-eval-range-citation-failures-2026-08-16.json)，
+逐条保留模型输出、人工复核的结构化单行参考引用和稳定失败分类。下一项预注册的可证伪
+假设见
+[`agent-eval-range-citation-freeze-2026-08-16.md`](evaluation/reports/agent-eval-range-citation-freeze-2026-08-16.md)：
+仅把最终决策中的自由文本引用改为严格的 `repo` / `path` / 正整数 `line` 字段，当前任务
+成功 Tool 事实的精确运行时校验保持不变，不增加范围兼容或自动修复。
+
 ### 配置 Zoekt 地址
 
 默认连接 `http://localhost:6070`。如果 Zoekt 运行在其他地址，可以设置：

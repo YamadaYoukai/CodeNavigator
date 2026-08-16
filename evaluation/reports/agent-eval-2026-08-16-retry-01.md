@@ -64,3 +64,8 @@ The companion JSON preserves every sanitized case trace, submitted final decisio
 - Six answerable cases submitted one or more range-shaped references such as `repo/path:start-end`. The frozen citation contract accepts only complete single-line `repo/path:line` values, so those answers correctly failed closed as `insufficient_evidence` and remain `model_judgment_failure` cases.
 - The `echo` case ended after four searches with a stable `tool_execution_error`; no raw backend exception was retained.
 - All 10 traces were complete and every task stayed within the six-Tool limit, but citation validity was only 6/20 (30%). M3 therefore remains incomplete.
+
+The six range-citation cases, exact submitted model decisions, reviewed
+single-line reference evidence, and the next pre-registered falsifiable
+hypothesis are frozen in
+[`agent-eval-range-citation-freeze-2026-08-16.md`](agent-eval-range-citation-freeze-2026-08-16.md).
