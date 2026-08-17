@@ -4,6 +4,7 @@ from pydantic import TypeAdapter, ValidationError
 from src.examples.code_understanding_agent import (
     ContextState,
     FakeModel,
+    FinalAnswerCitation,
     FinalAnswerDecision,
     GET_FILE_CONTEXT,
     ModelDecision,
@@ -138,15 +139,127 @@ def test_should_discriminate_and_validate_a_structured_final_answer() -> None:
         {
             "decision_type": "final_answer",
             "answer": "The retry policy is in src/retry.py.",
-            "evidence": ["src/retry.py:12"],
+            "evidence": [
+                {
+                    "repo": "example/repository",
+                    "path": "src/retry.py",
+                    "line": 12,
+                }
+            ],
             "uncertainties": [],
             "next_queries": ["RetryPolicy"],
         }
     )
 
     assert isinstance(decision, FinalAnswerDecision)
-    assert decision.evidence == ("src/retry.py:12",)
+    assert decision.evidence == (
+        FinalAnswerCitation(
+            repo="example/repository",
+            path="src/retry.py",
+            line=12,
+        ),
+    )
+    assert decision.evidence[0].to_canonical() == (
+        "example/repository/src/retry.py:12"
+    )
     assert decision.next_queries == ("RetryPolicy",)
+
+
+@pytest.mark.parametrize(
+    "evidence",
+    [
+        pytest.param(["example/repository/src/retry.py:12"], id="legacy-string"),
+        pytest.param(
+            ["example/repository/src/retry.py:12-14"],
+            id="legacy-range-string",
+        ),
+        pytest.param(
+            [{"repo": "click", "path": "src/retry.py", "start": 12, "end": 14}],
+            id="range-fields",
+        ),
+        pytest.param(
+            [{"repo": "click", "path": "src/retry.py", "line": 12, "quote": "x"}],
+            id="extra-field",
+        ),
+        pytest.param([{"path": "src/retry.py", "line": 12}], id="missing-repo"),
+        pytest.param([{"repo": "click", "line": 12}], id="missing-path"),
+        pytest.param(
+            [{"repo": "click", "path": "src/retry.py"}],
+            id="missing-line",
+        ),
+        pytest.param(
+            [{"repo": "", "path": "src/retry.py", "line": 12}],
+            id="empty-repo",
+        ),
+        pytest.param(
+            [{"repo": "click", "path": "", "line": 12}],
+            id="empty-path",
+        ),
+        pytest.param(
+            [{"repo": " click", "path": "src/retry.py", "line": 12}],
+            id="surrounding-whitespace",
+        ),
+        pytest.param(
+            [{"repo": "click", "path": "/src/retry.py", "line": 12}],
+            id="absolute-path",
+        ),
+        pytest.param(
+            [{"repo": "click", "path": r"src\retry.py", "line": 12}],
+            id="backslash",
+        ),
+        pytest.param(
+            [{"repo": "click", "path": "src\nretry.py", "line": 12}],
+            id="newline",
+        ),
+        pytest.param(
+            [{"repo": "click", "path": "src/../retry.py", "line": 12}],
+            id="parent-segment",
+        ),
+        pytest.param(
+            [{"repo": "click", "path": "src/./retry.py", "line": 12}],
+            id="current-segment",
+        ),
+        pytest.param(
+            [{"repo": "click", "path": "src//retry.py", "line": 12}],
+            id="empty-segment",
+        ),
+        pytest.param(
+            [{"repo": "click", "path": "src/retry.py:12", "line": 12}],
+            id="colon",
+        ),
+        pytest.param(
+            [{"repo": "click", "path": "src/retry.py", "line": 0}],
+            id="zero-line",
+        ),
+        pytest.param(
+            [{"repo": "click", "path": "src/retry.py", "line": -1}],
+            id="negative-line",
+        ),
+        pytest.param(
+            [{"repo": "click", "path": "src/retry.py", "line": True}],
+            id="boolean-line",
+        ),
+        pytest.param(
+            [{"repo": "click", "path": "src/retry.py", "line": "12"}],
+            id="string-line",
+        ),
+    ],
+)
+def test_should_reject_non_exact_final_answer_citations(
+    evidence: list[object],
+) -> None:
+    adapter = TypeAdapter(ModelDecision)
+
+    with pytest.raises(ValidationError):
+        adapter.validate_python(
+            {
+                "decision_type": "final_answer",
+                "answer": "Unsupported citation shape.",
+                "evidence": evidence,
+                "uncertainties": [],
+                "next_queries": [],
+            }
+        )
 
 
 def test_should_replay_scripted_decisions_and_record_detached_input_snapshots() -> None:
@@ -159,7 +272,13 @@ def test_should_replay_scripted_decisions_and_record_detached_input_snapshots() 
     )
     scripted_final_answer = FinalAnswerDecision(
         answer="RetryPolicy controls retry attempts.",
-        evidence=("src/retry.py:12",),
+        evidence=(
+            FinalAnswerCitation(
+                repo="example/repository",
+                path="src/retry.py",
+                line=12,
+            ),
+        ),
     )
     fake = FakeModel([scripted_tool_call, scripted_final_answer])
 

@@ -71,9 +71,10 @@ SYSTEM_INSTRUCTION = (
     "Do not answer code questions from memory or caller narration. Use "
     "search_code to find relevant source and get_file_context when surrounding "
     "implementation is needed. Every factual final answer must include one or "
-    "more exact citations in canonical repo/path:line form copied from "
-    "successful Tool results. If no successful Tool evidence supports an "
-    "answer, return a final answer with an empty evidence list."
+    "more exact citation objects copied from successful Tool results. Each "
+    "citation must contain only repo, path, and a positive integer line. If no "
+    "successful Tool evidence supports an answer, return a final answer with "
+    "an empty evidence list."
 )
 
 FORBIDDEN_REPORT_KEYS = frozenset(

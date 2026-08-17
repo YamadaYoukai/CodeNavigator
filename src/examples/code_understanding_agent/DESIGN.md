@@ -42,12 +42,27 @@ existing `TracedModelClient` owns each correlated model event pair, the
 existing router owns each correlated tool event pair, and `TraceRecorder`
 continues to own `task_id`, continuous sequence assignment, and terminal-state
 enforcement. A `FinalAnswerDecision` is copied into one `FinalAnswer`; that
-terminal event is last, and no model or tool call is permitted afterward.
+terminal event is last, and no model or tool call is permitted afterward. Its
+structured model citations are normalized before the public event is written.
 
 ### Final-answer evidence gate
 
-`FinalAnswerDecision.evidence` is accepted only when it is non-empty and every
-entry exactly matches a canonical `repo/path:line` string derived from this
+At the model boundary, `FinalAnswerDecision.evidence` is a tuple of strict
+`FinalAnswerCitation` objects containing only `repo`, `path`, and `line`.
+`repo` and `path` must be non-empty relative source components without
+surrounding whitespace, backslashes, colons, newlines, or `.` / `..` / empty
+segments. `line` must be a strict positive integer, so booleans and numeric
+strings are rejected. Extra or missing fields, legacy citation strings, and
+line ranges fail as `invalid_model_output`; the boundary does not repair or
+coerce them. `OpenAIModel` supplies both the matching JSON example and a strict
+Chat Completions `json_schema` response format while retaining the existing
+strict retrieval-tool schemas.
+
+`TracedModelClient` and `AgentLoop` normalize each valid citation object to the
+existing canonical `repo/path:line` representation. `ModelResult`,
+`FinalAnswer`, and evaluation reports therefore retain their public string
+format. The runtime gate accepts a final decision only when its normalized list
+is non-empty and every entry exactly matches a citation derived from this
 task's trace. The allowed set comes only from adjacent, correlated
 `ToolCall -> ToolResult(status="success")` pairs recorded under the current
 `task_id` before the terminal event. Caller-supplied `ContextState.evidence`,
@@ -62,8 +77,8 @@ from these fields and uses exact set membership. It does not parse a submitted
 string to guess repository/path boundaries, and it has no case, basename, URL,
 suffix, or substring fallback.
 
-An empty evidence list, malformed or forged location, out-of-range context
-line, or mixed valid/invalid list fails closed as
+An empty evidence list, a structurally valid but forged location, an
+out-of-range context line, or a mixed authorized/unauthorized list fails closed as
 `termination_reason="insufficient_evidence"`. The terminal replaces the model's
 unsupported answer with one stable information-insufficient message and clears
 `evidence`, `uncertainties`, and `next_queries`. It remains the unique final and
@@ -115,10 +130,10 @@ responses, or transport details.
 | Path | `termination_reason` | Events retained before the terminal | Calls allowed after trigger | Status |
 | --- | --- | --- | --- | --- |
 | Structured final answer with non-empty, fully traceable evidence | `completed` | Session; every Step; all correlated model and successful tool pairs | None | Implemented |
-| Empty, malformed, forged, out-of-range, or mixed final evidence | `insufficient_evidence` | Events through the successful `ModelResult` containing the rejected final decision | None | Implemented |
+| Empty, forged, out-of-range, or mixed structured final evidence | `insufficient_evidence` | Events through the successful `ModelResult` containing the rejected final decision | None | Implemented |
 | Tool budget exhausted | `tool_budget_exhausted` | Events through the model result that requested the disallowed call; no ToolCall or ToolResult for it | None | Implemented |
 | Model execution failure | `model_execution_error` | Current Step, ModelRequest, and its error ModelResult, plus all earlier events | None; no retry | Implemented |
-| Invalid model output | `invalid_model_output` | Current Step, ModelRequest, and its error ModelResult, plus all earlier events | None; no retry | Implemented |
+| Invalid model output, including a malformed citation object or legacy citation string | `invalid_model_output` | Current Step, ModelRequest, and its error ModelResult, plus all earlier events | None; no retry | Implemented |
 | Tool failure | `tool_error` | Successful model pair followed by the correlated ToolCall and error ToolResult, plus all earlier events | None; no retry | Implemented |
 | Model timeout | `model_timeout` | Current Step, ModelRequest, and its timeout-classified error ModelResult, plus all earlier events | None; no retry | Implemented |
 | Tool timeout | `tool_timeout` | Successful model pair, ToolCall, and its timeout-classified error ToolResult, plus all earlier events | None; no retry | Implemented |

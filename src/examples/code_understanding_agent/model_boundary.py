@@ -11,7 +11,14 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Annotated, Literal, Protocol, TypeAlias
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    JsonValue,
+    field_validator,
+    model_validator,
+)
 
 from .context import ModelInput
 from .tool_router import (
@@ -23,6 +30,7 @@ from .tool_router import (
 
 
 NonEmptyText: TypeAlias = Annotated[str, Field(min_length=1)]
+StrictPositiveInt: TypeAlias = Annotated[int, Field(strict=True, ge=1)]
 
 
 class ToolCallDecision(BaseModel):
@@ -46,6 +54,36 @@ class ToolCallDecision(BaseModel):
         return self
 
 
+class FinalAnswerCitation(BaseModel):
+    """One exact source line submitted through the model boundary."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    repo: NonEmptyText
+    path: NonEmptyText
+    line: StrictPositiveInt
+
+    @field_validator("repo", "path")
+    @classmethod
+    def validate_source_component(cls, value: str) -> str:
+        """Reject ambiguous or non-portable repository/path components."""
+
+        if value != value.strip():
+            raise ValueError("source component must not have surrounding whitespace")
+        if value.startswith("/") or value.endswith("/"):
+            raise ValueError("source component must be relative")
+        if any(character in value for character in (":", "\\", "\n", "\r")):
+            raise ValueError("source component contains a forbidden character")
+        if any(part in {"", ".", ".."} for part in value.split("/")):
+            raise ValueError("source component contains an invalid path segment")
+        return value
+
+    def to_canonical(self) -> str:
+        """Return the existing public ``repo/path:line`` representation."""
+
+        return f"{self.repo}/{self.path}:{self.line}"
+
+
 class FinalAnswerDecision(BaseModel):
     """Return the terminal, evidence-aware answer to the current task."""
 
@@ -53,7 +91,7 @@ class FinalAnswerDecision(BaseModel):
 
     decision_type: Literal["final_answer"] = "final_answer"
     answer: NonEmptyText
-    evidence: tuple[NonEmptyText, ...] = Field(default_factory=tuple)
+    evidence: tuple[FinalAnswerCitation, ...] = Field(default_factory=tuple)
     uncertainties: tuple[NonEmptyText, ...] = Field(default_factory=tuple)
     next_queries: tuple[NonEmptyText, ...] = Field(default_factory=tuple)
 
@@ -62,6 +100,21 @@ ModelDecision: TypeAlias = Annotated[
     ToolCallDecision | FinalAnswerDecision,
     Field(discriminator="decision_type"),
 ]
+
+
+def model_decision_to_trace_payload(
+    decision: ToolCallDecision | FinalAnswerDecision,
+) -> dict[str, JsonValue]:
+    """Serialize a decision while preserving the public citation format."""
+
+    if not isinstance(decision, (ToolCallDecision, FinalAnswerDecision)):
+        raise TypeError("decision must be a model decision")
+    payload = decision.model_dump(mode="json")
+    if isinstance(decision, FinalAnswerDecision):
+        payload["evidence"] = [
+            citation.to_canonical() for citation in decision.evidence
+        ]
+    return payload
 
 
 class ModelClient(Protocol):

@@ -16,7 +16,12 @@ from .events import (
     ToolResult,
 )
 from .final_answer_evidence import validate_final_answer_evidence
-from .model_boundary import FinalAnswerDecision, ModelClient, ToolCallDecision
+from .model_boundary import (
+    FinalAnswerDecision,
+    ModelClient,
+    ToolCallDecision,
+    model_decision_to_trace_payload,
+)
 from .model_errors import ModelBoundaryError, ModelErrorType
 from .tool_router import GET_FILE_CONTEXT, SEARCH_CODE, ToolErrorCode
 from .tool_step import (
@@ -149,8 +154,11 @@ class AgentLoop:
                 )
 
             if isinstance(decision, FinalAnswerDecision):
+                canonical_evidence = tuple(
+                    citation.to_canonical() for citation in decision.evidence
+                )
                 evidence_validation = validate_final_answer_evidence(
-                    decision.evidence,
+                    canonical_evidence,
                     events=self._trace.events,
                     task_id=self._trace.task_id,
                 )
@@ -163,7 +171,7 @@ class AgentLoop:
                 recorded_final = self._trace.finalize(
                     FinalAnswer(
                         answer=decision.answer,
-                        evidence=list(decision.evidence),
+                        evidence=list(canonical_evidence),
                         uncertainties=list(decision.uncertainties),
                         next_queries=list(decision.next_queries),
                         termination_reason="completed",
@@ -239,7 +247,7 @@ class AgentLoop:
             and isinstance(result, ModelResult)
             and request.request_id == result.request_id
             and result.status == "success"
-            and result.decision == decision.model_dump(mode="json")
+            and result.decision == model_decision_to_trace_payload(decision)
         )
 
     def _recorded_model_error_matches(self, error_type: ModelErrorType) -> bool:

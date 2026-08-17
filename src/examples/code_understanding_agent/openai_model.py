@@ -39,7 +39,10 @@ repository name. For get_file_context, use only a canonical repository name
 returned by search_code or supplied in repository_hints.
 When answering without a tool call, return only a JSON object matching:
 {"decision_type":"final_answer","answer":"non-empty answer",\
-"evidence":["source references"],"uncertainties":[],"next_queries":[]}
+"evidence":[{"repo":"click","path":"src/click/utils.py","line":411}],\
+"uncertainties":[],"next_queries":[]}
+Each evidence item must identify exactly one source line. Use a positive integer
+for line; never submit a string citation, line range, or extra citation field.
 Do not wrap the JSON in Markdown."""
 
 
@@ -125,6 +128,19 @@ def build_tools(tool_schemas: Sequence[ToolSchema]) -> list[dict[str, Any]]:
     return tools
 
 
+def build_final_answer_response_format() -> dict[str, Any]:
+    """Build the strict schema for a non-tool final-answer response."""
+
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "final_answer_decision",
+            "strict": True,
+            "schema": _strict_json_schema(FinalAnswerDecision.model_json_schema()),
+        },
+    }
+
+
 class OpenAIModel:
     """Adapt an injected OpenAI-compatible client to ``ModelClient``."""
 
@@ -151,6 +167,7 @@ class OpenAIModel:
                 tools=build_tools(model_input.tool_schemas),
                 tool_choice="auto",
                 parallel_tool_calls=False,
+                response_format=build_final_answer_response_format(),
             )
         except (APITimeoutError, ModelTimeoutError, TimeoutError):
             raise ModelTimeoutError() from None

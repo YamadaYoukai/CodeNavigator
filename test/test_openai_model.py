@@ -6,6 +6,7 @@ import pytest
 from src.examples.code_understanding_agent import (
     ContextState,
     FakeModel,
+    FinalAnswerCitation,
     FinalAnswerDecision,
     InvalidModelOutputError,
     ModelExecutionError,
@@ -19,6 +20,7 @@ from src.examples.code_understanding_agent import (
     TraceRecorder,
     TracedModelClient,
     build_context,
+    build_final_answer_response_format,
 )
 from src.examples.code_understanding_agent.openai_model import build_messages, build_tools
 
@@ -104,6 +106,25 @@ def test_build_tools_converts_defaulted_pydantic_schemas_to_strict_tools() -> No
         assert "default" not in json.dumps(parameters)
 
 
+def test_final_answer_response_format_requires_exact_citation_objects() -> None:
+    response_format = build_final_answer_response_format()
+    schema = response_format["json_schema"]["schema"]
+    citation_schema = schema["$defs"]["FinalAnswerCitation"]
+
+    assert response_format["type"] == "json_schema"
+    assert response_format["json_schema"]["strict"] is True
+    assert schema["properties"]["evidence"] == {
+        "items": {"$ref": "#/$defs/FinalAnswerCitation"},
+        "type": "array",
+    }
+    assert citation_schema["required"] == ["repo", "path", "line"]
+    assert citation_schema["additionalProperties"] is False
+    assert citation_schema["properties"]["line"] == {
+        "minimum": 1,
+        "type": "integer",
+    }
+
+
 def test_build_messages_supplies_closed_world_repository_names() -> None:
     system_message, user_message = build_messages(build_model_input())
     user_payload = json.loads(user_message["content"])
@@ -148,6 +169,9 @@ def test_valid_search_code_response_becomes_tool_call_decision() -> None:
     assert completions.calls[0]["model"] == "test-model"
     assert completions.calls[0]["tool_choice"] == "auto"
     assert completions.calls[0]["parallel_tool_calls"] is False
+    assert completions.calls[0]["response_format"] == (
+        build_final_answer_response_format()
+    )
 
 
 def test_valid_get_file_context_response_becomes_tool_call_decision() -> None:
@@ -185,7 +209,13 @@ def test_valid_json_final_answer_becomes_final_answer_decision() -> None:
                 {
                     "decision_type": "final_answer",
                     "answer": "make_context is implemented in src/click/core.py.",
-                    "evidence": ["src/click/core.py:1169"],
+                    "evidence": [
+                        {
+                            "repo": "click",
+                            "path": "src/click/core.py",
+                            "line": 1169,
+                        }
+                    ],
                     "uncertainties": [],
                     "next_queries": [],
                 }
@@ -196,7 +226,52 @@ def test_valid_json_final_answer_becomes_final_answer_decision() -> None:
     decision = adapter.decide(build_model_input())
 
     assert isinstance(decision, FinalAnswerDecision)
-    assert decision.evidence == ("src/click/core.py:1169",)
+    assert decision.evidence == (
+        FinalAnswerCitation(repo="click", path="src/click/core.py", line=1169),
+    )
+
+
+@pytest.mark.parametrize(
+    "evidence",
+    [
+        pytest.param(["click/src/click/core.py:1169"], id="legacy-string"),
+        pytest.param(["click/src/click/core.py:1169-1172"], id="range-string"),
+        pytest.param(
+            [
+                {
+                    "repo": "click",
+                    "path": "src/click/core.py",
+                    "start": 1169,
+                    "end": 1172,
+                }
+            ],
+            id="range-object",
+        ),
+        pytest.param(
+            [{"repo": "click", "path": "src/click/core.py", "line": "1169"}],
+            id="string-line",
+        ),
+    ],
+)
+def test_invalid_final_answer_citations_are_rejected_by_adapter(
+    evidence: list[object],
+) -> None:
+    adapter, _ = build_adapter(
+        make_response(
+            content=json.dumps(
+                {
+                    "decision_type": "final_answer",
+                    "answer": "Invalid evidence must not cross the boundary.",
+                    "evidence": evidence,
+                    "uncertainties": [],
+                    "next_queries": [],
+                }
+            )
+        )
+    )
+
+    with pytest.raises(InvalidModelOutputError):
+        adapter.decide(build_model_input())
 
 
 @pytest.mark.parametrize(
@@ -393,7 +468,13 @@ def test_traced_client_records_correlated_model_timeout_without_retry() -> None:
 def test_traced_client_can_wrap_fake_model_without_provider_dependencies() -> None:
     scripted = FinalAnswerDecision(
         answer="The supplied evidence is sufficient.",
-        evidence=("src/click/core.py:1169",),
+        evidence=(
+            FinalAnswerCitation(
+                repo="click",
+                path="src/click/core.py",
+                line=1169,
+            ),
+        ),
     )
     trace = TraceRecorder(task_id="traced-fake-model")
     traced = TracedModelClient(
@@ -413,3 +494,6 @@ def test_traced_client_can_wrap_fake_model_without_provider_dependencies() -> No
     ]
     assert trace.events[0].request_id == trace.events[1].request_id
     assert trace.events[1].elapsed_ms == 1
+    assert trace.events[1].decision["evidence"] == [
+        "click/src/click/core.py:1169"
+    ]

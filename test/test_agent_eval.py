@@ -22,6 +22,7 @@ from evaluation.run_agent_eval import (
 from src.examples.code_understanding_agent import (
     FakeModel,
     FinalAnswer,
+    FinalAnswerCitation,
     FinalAnswerDecision,
     SEARCH_CODE,
     ToolCallDecision,
@@ -177,7 +178,13 @@ def test_evaluate_answerable_case_records_valid_provenance_and_gold() -> None:
             ),
             FinalAnswerDecision(
                 answer="echo is implemented in Click's utils module.",
-                evidence=("click/src/click/utils.py:234",),
+                evidence=(
+                    FinalAnswerCitation(
+                        repo="click",
+                        path="src/click/utils.py",
+                        line=234,
+                    ),
+                ),
             ),
         )
     )
@@ -205,6 +212,12 @@ def test_evaluate_answerable_case_records_valid_provenance_and_gold() -> None:
     assert record["success"] is True
     assert record["failure_category"] is None
     assert record["final_answer"]["termination_reason"] == "completed"
+    assert record["final_answer"]["evidence"] == [
+        "click/src/click/utils.py:234"
+    ]
+    assert record["submitted_final_decision"]["evidence"] == [
+        "click/src/click/utils.py:234"
+    ]
     assert record["tool_attempts"]["count"] == 1
     assert record["tool_attempts"]["names"] == [SEARCH_CODE]
     assert record["trace_integrity"]["ok"] is True
@@ -277,7 +290,13 @@ def test_rejected_model_citation_remains_in_metric_denominator() -> None:
             ),
             FinalAnswerDecision(
                 answer="unsupported",
-                evidence=("click/src/click/forged.py:999",),
+                evidence=(
+                    FinalAnswerCitation(
+                        repo="click",
+                        path="src/click/forged.py",
+                        line=999,
+                    ),
+                ),
             ),
         )
     )
@@ -325,7 +344,13 @@ def test_summary_is_recomputable_from_positive_and_negative_records() -> None:
             ),
             FinalAnswerDecision(
                 answer="located",
-                evidence=("click/src/click/utils.py:234",),
+                evidence=(
+                    FinalAnswerCitation(
+                        repo="click",
+                        path="src/click/utils.py",
+                        line=234,
+                    ),
+                ),
             ),
         )
     )

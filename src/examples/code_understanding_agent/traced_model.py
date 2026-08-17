@@ -14,6 +14,7 @@ from .model_boundary import (
     ModelClient,
     ModelDecision,
     ToolCallDecision,
+    model_decision_to_trace_payload,
 )
 from .model_errors import (
     InvalidModelOutputError,
@@ -107,7 +108,7 @@ class TracedModelClient:
         result = ModelResult(
             request_id=request_id,
             status="success",
-            decision=decision.model_dump(mode="json"),
+            decision=model_decision_to_trace_payload(decision),
             elapsed_ms=self._measure_elapsed_ms(started_at),
         )
         self._trace.append(result)

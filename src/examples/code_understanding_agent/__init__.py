@@ -27,6 +27,7 @@ from .final_answer_evidence import (
 )
 from .model_boundary import (
     FakeModel,
+    FinalAnswerCitation,
     FinalAnswerDecision,
     ModelClient,
     ModelDecision,
@@ -38,7 +39,12 @@ from .model_errors import (
     ModelExecutionError,
     ModelTimeoutError,
 )
-from .openai_model import OpenAIModel, build_messages, build_tools
+from .openai_model import (
+    OpenAIModel,
+    build_final_answer_response_format,
+    build_messages,
+    build_tools,
+)
 from .repository_resolver import RepositoryAliasResolver
 from .trace import TraceRecorder
 from .traced_model import TracedModelClient
@@ -73,6 +79,7 @@ __all__ = [
     "EvidenceKind",
     "FakeModel",
     "FinalAnswer",
+    "FinalAnswerCitation",
     "FinalAnswerDecision",
     "FinalAnswerEvidenceValidation",
     "ALLOWED_TOOL_NAMES",
@@ -114,6 +121,7 @@ __all__ = [
     "TraceRecorder",
     "TracedModelClient",
     "build_context",
+    "build_final_answer_response_format",
     "build_messages",
     "build_tools",
     "collect_allowed_final_answer_evidence",

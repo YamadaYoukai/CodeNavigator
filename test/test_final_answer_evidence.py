@@ -11,6 +11,7 @@ from src.examples.code_understanding_agent import (
     EvidenceKind,
     FakeModel,
     FinalAnswer,
+    FinalAnswerCitation,
     FinalAnswerDecision,
     GET_FILE_CONTEXT,
     GetFileContextArguments,
@@ -208,7 +209,11 @@ def test_should_collect_only_exact_search_hits_and_file_context_range() -> None:
             SEARCH_CODE,
             {"query": "RetryPolicy"},
             _search_result(),
-            "example/repository/src/retry.py:12",
+            FinalAnswerCitation(
+                repo="example/repository",
+                path="src/retry.py",
+                line=12,
+            ),
             id="search-hit",
         ),
         pytest.param(
@@ -219,7 +224,11 @@ def test_should_collect_only_exact_search_hits_and_file_context_range() -> None:
                 "line_number": 12,
             },
             _context_result(),
-            "example/repository/src/retry.py:14",
+            FinalAnswerCitation(
+                repo="example/repository",
+                path="src/retry.py",
+                line=14,
+            ),
             id="file-context-range",
         ),
     ],
@@ -228,7 +237,7 @@ def test_should_complete_with_exact_current_task_tool_evidence(
     tool_name: str,
     arguments: dict[str, object],
     tool_result: object,
-    citation: str,
+    citation: FinalAnswerCitation,
 ) -> None:
     decisions = (
         ToolCallDecision(
@@ -252,7 +261,7 @@ def test_should_complete_with_exact_current_task_tool_evidence(
 
     assert outcome.final_answer.termination_reason == "completed"
     assert outcome.final_answer.answer == decisions[-1].answer
-    assert outcome.final_answer.evidence == [citation]
+    assert outcome.final_answer.evidence == [citation.to_canonical()]
     assert outcome.final_answer.uncertainties == ["Callers were not inspected."]
     assert outcome.final_answer.next_queries == ["RetryPolicy callers"]
     assert trace.events[-1] == outcome.final_answer
@@ -277,10 +286,19 @@ def test_should_reject_empty_evidence_and_not_preserve_model_answer() -> None:
 
 
 def test_should_not_trust_caller_preloaded_fact_or_history() -> None:
-    citation = "example/repository/src/retry.py:12"
+    citation = FinalAnswerCitation(
+        repo="example/repository",
+        path="src/retry.py",
+        line=12,
+    )
+    canonical_citation = citation.to_canonical()
     initial_evidence = (
-        Evidence(kind=EvidenceKind.FACT, source="caller", content=citation),
-        Evidence(kind=EvidenceKind.HISTORY, source="caller", content=citation),
+        Evidence(kind=EvidenceKind.FACT, source="caller", content=canonical_citation),
+        Evidence(
+            kind=EvidenceKind.HISTORY,
+            source="caller",
+            content=canonical_citation,
+        ),
     )
 
     trace, outcome, _ = _run_loop(
@@ -299,17 +317,26 @@ def test_should_not_trust_caller_preloaded_fact_or_history() -> None:
 @pytest.mark.parametrize(
     "citation",
     [
-        "forged/repository/src/retry.py:12",
-        "example/repository/src/forged.py:12",
-        "example/repository/src/retry.py:0",
-        "example/repository/src/retry.py:-1",
-        "example/repository/src/retry.py:twelve",
-        "src/retry.py:12",
-        "https://example.invalid/repository/src/retry.py:12",
+        FinalAnswerCitation(repo="forged/repository", path="src/retry.py", line=12),
+        FinalAnswerCitation(
+            repo="example/repository",
+            path="src/forged.py",
+            line=12,
+        ),
+        FinalAnswerCitation(
+            repo="example/repository",
+            path="src/retry.py",
+            line=11,
+        ),
+        FinalAnswerCitation(
+            repo="example/repository",
+            path="src/retry.py",
+            line=13,
+        ),
     ],
 )
-def test_should_fail_closed_for_forged_or_noncanonical_citation(
-    citation: str,
+def test_should_fail_closed_for_structurally_valid_unsupported_citation(
+    citation: FinalAnswerCitation,
 ) -> None:
     decisions = (
         ToolCallDecision(
@@ -335,8 +362,16 @@ def test_should_reject_entire_answer_when_one_citation_is_forged() -> None:
         FinalAnswerDecision(
             answer="Mixed evidence must fail closed.",
             evidence=(
-                "example/repository/src/retry.py:12",
-                "example/repository/src/retry.py:13",
+                FinalAnswerCitation(
+                    repo="example/repository",
+                    path="src/retry.py",
+                    line=12,
+                ),
+                FinalAnswerCitation(
+                    repo="example/repository",
+                    path="src/retry.py",
+                    line=13,
+                ),
             ),
         ),
     )

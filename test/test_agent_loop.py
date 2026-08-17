@@ -13,6 +13,7 @@ from src.examples.code_understanding_agent import (
     EvidenceKind,
     FakeModel,
     FinalAnswer,
+    FinalAnswerCitation,
     FinalAnswerDecision,
     GET_FILE_CONTEXT,
     GetFileContextArguments,
@@ -63,7 +64,13 @@ def test_should_run_two_tool_success_path_into_one_terminal_answer() -> None:
         ),
         FinalAnswerDecision(
             answer="RetryPolicy is declared in src/retry.py.",
-            evidence=("example/repository/src/retry.py:12",),
+            evidence=(
+                FinalAnswerCitation(
+                    repo="example/repository",
+                    path="src/retry.py",
+                    line=12,
+                ),
+            ),
             uncertainties=(),
             next_queries=("RetryPolicy callers",),
         ),
