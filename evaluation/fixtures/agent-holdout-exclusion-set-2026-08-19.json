@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "click_revision": "6eeb50e948ea136db145280f6f5dd52eca3fa7e5",
+  "exported_on": "2026-08-19",
+  "purpose": "Exclude every prior Agent Eval task, retrieval query target, and frozen range-citation failure from the unseen Click holdout.",
+  "sources": [
+    {
+      "kind": "agent_cases",
+      "path": "evaluation/agent_cases.jsonl",
+      "sha256": "09b3e346686d550c09c3b361ec16d00e51cac8fd257850593901ab212c2da129",
+      "case_count": 10,
+      "cases": [
+        {"id": "agent-click-echo-001", "prompt": "In Click 8.4.1, where is `echo` implemented, and what does it do with ANSI styles when the output is not an interactive terminal?", "locations": [{"repo": "click", "path": "src/click/utils.py", "line_min": 234, "line_max": 334}]},
+        {"id": "agent-click-open-file-001", "prompt": "How does Click 8.4.1 implement `open_file`, including its handling of `-`, lazy opening, and atomic writes? Locate the implementation.", "locations": [{"repo": "click", "path": "src/click/utils.py", "line_min": 370, "line_max": 416}]},
+        {"id": "agent-click-format-filename-001", "prompt": "Where does Click 8.4.1 make filenames safe for UI display, and how are invalid bytes or surrogate escapes handled?", "locations": [{"repo": "click", "path": "src/click/utils.py", "line_min": 419, "line_max": 458}]},
+        {"id": "agent-click-progressbar-001", "prompt": "Click 8.4.1 has multiple `progressbar` definitions because of typing overloads. Which location contains the runtime implementation, and what object does it create?", "locations": [{"repo": "click", "path": "src/click/termui.py", "line_min": 351, "line_max": 575}]},
+        {"id": "agent-click-default-map-001", "prompt": "In Click 8.4.1, where does `Context.lookup_default` read `default_map`, and what changes when its `call` argument is false?", "locations": [{"repo": "click", "path": "src/click/core.py", "line_min": 727, "line_max": 771}]},
+        {"id": "agent-click-extra-args-001", "prompt": "Where does Click 8.4.1 produce the singular versus plural `Got unexpected extra argument` error, and what conditions trigger it?", "locations": [{"repo": "click", "path": "src/click/core.py", "line_min": 1281, "line_max": 1288}]},
+        {"id": "agent-click-command-normalize-001", "prompt": "How does Click 8.4.1 retry subcommand resolution with `token_normalize_func`, and where is that behavior implemented?", "locations": [{"repo": "click", "path": "src/click/core.py", "line_min": 1946, "line_max": 1970}]},
+        {"id": "agent-click-choice-message-001", "prompt": "Where does Click 8.4.1 build the missing-value message for a `Choice`, and how are the displayed choices normalized?", "locations": [{"repo": "click", "path": "src/click/types.py", "line_min": 302, "line_max": 366}]},
+        {"id": "agent-click-no-symbol-001", "prompt": "Does Click 8.4.1 define a class or function named `ClickOptionRegistry`? Locate its source and explain its responsibility only if Tool evidence exists.", "locations": []},
+        {"id": "agent-click-no-origin-registry-001", "prompt": "Where is `ParameterOriginRegistry` implemented in Click 8.4.1, and how does it track parameter origins? Answer only if the repository tools return supporting source.", "locations": []}
+      ]
+    },
+    {
+      "kind": "retrieval_cases",
+      "path": "evaluation/cases.jsonl",
+      "sha256": "7c8468dba4d7d4c9f571c0ffa51efbc669185b4ac16511ee3e9b7b4c2ba51be0",
+      "case_count": 18,
+      "cases": [
+        {"id": "click-error-001", "prompt": "The given command does not have a callback that can be invoked.", "locations": [{"repo": "click", "path": "src/click/core.py", "line_min": 848, "line_max": 848}]},
+        {"id": "click-symbol-001", "prompt": "class ParameterSource\\(", "locations": [{"repo": "click", "path": "src/click/core.py", "line_min": 163, "line_max": 163}]},
+        {"id": "click-error-002", "prompt": "No such command {name!r}.", "locations": [{"repo": "click", "path": "src/click/exceptions.py", "line_min": 265, "line_max": 265}]},
+        {"id": "click-config-001", "prompt": "auto_envvar_prefix: str \\| None = None", "locations": [{"repo": "click", "path": "src/click/core.py", "line_min": 312, "line_max": 312}]},
+        {"id": "click-path-001", "prompt": "get_text_stream", "locations": [{"repo": "click", "path": "src/click/utils.py", "line_min": 349, "line_max": 349}]},
+        {"id": "click-language-001", "prompt": "def resolve_color_default\\(", "locations": [{"repo": "click", "path": "src/click/globals.py", "line_min": 54, "line_max": 54}]},
+        {"id": "click-no-match-001", "prompt": "auto_envvar_suffix", "locations": [{"repo": "click", "path": "src/click/core.py", "line_min": null, "line_max": null}]},
+        {"id": "click-no-match-002", "prompt": "resolve_color_fallback", "locations": [{"repo": "click", "path": "src/click/globals.py", "line_min": null, "line_max": null}]},
+        {"id": "click-context-start-001", "prompt": "from __future__ import annotations", "locations": [{"repo": "click", "path": "src/click/globals.py", "line_min": 1, "line_max": 1}]},
+        {"id": "click-context-end-001", "prompt": "if ctx is not None:", "locations": [{"repo": "click", "path": "src/click/globals.py", "line_min": 64, "line_max": 64}]},
+        {"id": "click-duplicate-hit-001", "prompt": "resolve_color_default", "locations": [{"repo": "click", "path": "src/click/globals.py", "line_min": 54, "line_max": 54}]},
+        {"id": "click-irrelevant-result-001", "prompt": "callback", "locations": [{"repo": "click", "path": "src/click/core.py", "line_min": 817, "line_max": 877}]},
+        {"id": "click-unscoped-path-001", "prompt": "get_text_stream", "locations": [{"repo": "click", "path": "src/click/utils.py", "line_min": 349, "line_max": 349}]},
+        {"id": "click-symbol-candidate-001", "prompt": "ParameterSource", "locations": [{"repo": "click", "path": "src/click/core.py", "line_min": 163, "line_max": 163}]},
+        {"id": "click-error-text-003", "prompt": "Attempted to convert a callback into a command twice.", "locations": [{"repo": "click", "path": "src/click/decorators.py", "line_min": 219, "line_max": 219}]},
+        {"id": "click-language-path-001", "prompt": "class File\\(", "locations": [{"repo": "click", "path": "src/click/types.py", "line_min": 800, "line_max": 800}]},
+        {"id": "click-context-overlong-001", "prompt": "def get_help_option\\(", "locations": [{"repo": "click", "path": "src/click/core.py", "line_min": 1107, "line_max": 1107}]},
+        {"id": "click-duplicate-hit-002", "prompt": "UsageError", "locations": [{"repo": "click", "path": "src/click/exceptions.py", "line_min": 65, "line_max": 65}]}
+      ]
+    },
+    {
+      "kind": "range_citation_failures",
+      "path": "evaluation/fixtures/agent-eval-range-citation-failures-2026-08-16.json",
+      "sha256": "72c22db0d1bdd466d6a7eb40ce9b7bdc76c937b662214728a6b8b8251198f1b3",
+      "case_count": 6,
+      "cases": [
+        {"id": "agent-click-open-file-001", "prompt": "How does Click 8.4.1 implement `open_file`, including its handling of `-`, lazy opening, and atomic writes? Locate the implementation.", "locations": [{"repo": "click", "path": "src/click/utils.py", "line_min": 370, "line_max": 416}]},
+        {"id": "agent-click-format-filename-001", "prompt": "Where does Click 8.4.1 make filenames safe for UI display, and how are invalid bytes or surrogate escapes handled?", "locations": [{"repo": "click", "path": "src/click/utils.py", "line_min": 419, "line_max": 458}]},
+        {"id": "agent-click-default-map-001", "prompt": "In Click 8.4.1, where does `Context.lookup_default` read `default_map`, and what changes when its `call` argument is false?", "locations": [{"repo": "click", "path": "src/click/core.py", "line_min": 727, "line_max": 771}]},
+        {"id": "agent-click-extra-args-001", "prompt": "Where does Click 8.4.1 produce the singular versus plural `Got unexpected extra argument` error, and what conditions trigger it?", "locations": [{"repo": "click", "path": "src/click/core.py", "line_min": 1281, "line_max": 1288}]},
+        {"id": "agent-click-command-normalize-001", "prompt": "How does Click 8.4.1 retry subcommand resolution with `token_normalize_func`, and where is that behavior implemented?", "locations": [{"repo": "click", "path": "src/click/core.py", "line_min": 1946, "line_max": 1970}]},
+        {"id": "agent-click-choice-message-001", "prompt": "Where does Click 8.4.1 build the missing-value message for a `Choice`, and how are the displayed choices normalized?", "locations": [{"repo": "click", "path": "src/click/types.py", "line_min": 302, "line_max": 366}]}
+      ]
+    }
+  ]
+}

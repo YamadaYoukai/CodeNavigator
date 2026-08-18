@@ -218,6 +218,31 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=. .venv/bin/python \
 仅把最终决策中的自由文本引用改为严格的 `repo` / `path` / 正整数 `line` 字段，当前任务
 成功 Tool 事实的精确运行时校验保持不变，不增加范围兼容或自动修复。
 
+### 独立冻结的 Agent Holdout
+
+未参与上述 Prompt 调试、失败分析或结构化引用实现的新 Click 8.4.1 holdout 位于
+[`evaluation/agent_holdout_cases_2026-08-19.jsonl`](evaluation/agent_holdout_cases_2026-08-19.jsonl)。
+它独立保持 8 条可回答与 2 条应信息不足任务，冻结 SHA-256 为
+`e08cd744a44b3fb99ac98d0f5bf77ef6489f324c8109aba980687f459a0df396`。
+
+[`agent-holdout-exclusion-set-2026-08-19.json`](evaluation/fixtures/agent-holdout-exclusion-set-2026-08-19.json)
+逐条保留原 10 条 Agent case、18 条检索 case 和 6 条范围引用失败的 ID、问题或查询、目标位置及源文件哈希。完整人工源码复核、两条全仓无命中命令和诚实边界记录在
+[`agent-holdout-freeze-2026-08-19.md`](evaluation/reports/agent-holdout-freeze-2026-08-19.md)。
+
+以下入口只校验 `8/2` 分布、ID 和问题唯一性、Click revision、数据与排除集哈希、排除集
+`10/18/6` 覆盖，以及正向 gold 与旧目标位置不相交；它不读取模型凭据，不调用模型或
+Zoekt：
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=. .venv/bin/python \
+  evaluation/run_agent_holdout.py --validate-only
+```
+
+后续独立工作日的真实运行也使用 `evaluation/run_agent_holdout.py`，且只接受默认冻结文件。
+默认报告名为 `agent-holdout-eval-YYYY-MM-DD.json` 和
+`agent-holdout-eval-YYYY-MM-DD.md`，不会覆盖 08-16 的原评测报告。冻结当天没有运行真实
+holdout，也没有预填任何新质量指标。
+
 ### 配置 Zoekt 地址
 
 默认连接 `http://localhost:6070`。如果 Zoekt 运行在其他地址，可以设置：
