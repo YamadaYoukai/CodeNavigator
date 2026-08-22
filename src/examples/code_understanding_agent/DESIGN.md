@@ -1,10 +1,12 @@
 # Code-understanding agent boundaries
 
-This package provides a small, in-memory event boundary for the agent harness
-and dependency-injected boundaries for context construction, model decisions,
-and its two code-retrieval tools. `TraceRecorder` owns `task_id` and continuous
-sequence assignment. Most event timing remains caller-supplied;
-`TracedModelClient` is the one boundary that measures its wrapped model call.
+This package provides a small event boundary for the agent harness and
+dependency-injected boundaries for context construction, model decisions, and
+its two code-retrieval tools. `TraceRecorder` remains in memory while a process
+is running; the optional checkpoint store persists only the one recovery-safe
+prefix described below. `TraceRecorder` owns `task_id` and continuous sequence
+assignment. Most event timing remains caller-supplied; `TracedModelClient` is
+the one boundary that measures its wrapped model call.
 
 ## Agent loop contract
 
@@ -44,6 +46,82 @@ continues to own `task_id`, continuous sequence assignment, and terminal-state
 enforcement. A `FinalAnswerDecision` is copied into one `FinalAnswer`; that
 terminal event is last, and no model or tool call is permitted afterward. Its
 structured model citations are normalized before the public event is written.
+
+## Durable checkpoint and recovery contract
+
+Persistence is optional and deliberately narrower than the loop itself. With a
+`FileCheckpointStore` injected, `AgentLoop` writes a `resumable` record only
+after a correlated `ToolCall -> ToolResult(status="success")` has been recorded,
+the next state and exact next `ModelInput` have been constructed, and the next
+`Step` has not been appended. `on_checkpoint_saved`, when supplied, runs only
+after that durable write returns; the offline proof uses it to simulate process
+termination without recording any event from the next step.
+
+A schema-version-1 resumable record contains exactly:
+
+- `schema_version=1`, `status="resumable"`, and
+  `phase="after_successful_tool_result"`;
+- one non-empty `task_id` and a positive, monotonically increasing
+  `generation`;
+- the complete current `ContextState` and the complete next `ModelInput`;
+- attempted Tool count, remaining Tool budget, and next step number;
+- the complete `TraceRecorder.to_dict()` event prefix.
+
+The duplicated task, sequence, step, and budget information is intentional. A
+load succeeds only when the trace begins with one `Session`, contains complete
+and correlated `Step -> ModelRequest -> ModelResult(success) -> ToolCall ->
+ToolResult(success)` groups, ends at the successful Tool result, and has no
+terminal event. Event task IDs and sequences must be exact and continuous. The
+initial request budget must be at most six, each request budget must decrease
+with its completed Tool pair, and the saved state, duplicated remaining budget,
+Tool count, and next step must agree with that history.
+
+The latest saved fact is recomputed from the last decision and successful Tool
+result. It must be the first fact in `ContextState`, and rebuilding with that
+one protected fact must reproduce the saved next `ModelInput` exactly. This
+includes the zero-evidence-budget case: the just-produced fact remains visible
+to the resumed model rather than being reconstructed with ordinary trimming
+and silently lost.
+
+JSON loading is fail closed. Unknown schema versions, statuses, phases, fields,
+or event types; duplicate object keys; non-finite numbers; primitive type
+coercions; non-canonical trace payloads; corrupt JSON; task/sequence/budget
+mismatches; incomplete model or Tool pairs; error Tool results; and finalized
+`resumable` records are rejected. `FileCheckpointStore` revalidates even typed
+callers, writes mode-`0600` same-directory temporary files, fsyncs file content,
+atomically replaces the target, and fsyncs the containing directory. It only
+accepts generation 1 as the first record and thereafter requires the same task
+and exactly one generation of forward progress. A corrupt, stale, unrelated,
+or completed existing file is never overwritten. A new run checks for an
+existing record before appending `Session` or calling the model or a Tool.
+
+Recovery is an explicit two-stage operation so every injected boundary shares
+one recorder. The new process loads the record, calls
+`ResumableCheckpoint.restore_trace()`, constructs a new traced model, router,
+Tool executor, and `AgentLoop` around that restored recorder, then calls
+`AgentLoop.resume(record)`. Before appending a `Step` or invoking the model or a
+Tool, `resume` re-reads the current store, rejects completed or stale records,
+and requires value-equivalent record state and an exact restored trace. It then
+continues from the saved `next_model_input`, `next_step_number`, budget, Tool
+count, and generation. It never appends a second `Session` and never replays the
+Tool pair already present in the prefix.
+
+Once a loop that has written at least one resumable generation reaches any
+terminal, the store atomically advances to a `completed` record containing the
+final state and finalized trace. Completed records require exactly one terminal
+last event, correlated recorded model and Tool pairs, continuous budgets, and
+at least one prior successful Tool result. They cannot be advanced or resumed.
+A task that terminates before its first successful Tool result never creates a
+checkpoint file.
+
+This contract proves no duplicate execution of the already completed Tool only
+for this controlled recovery boundary. It does not recover a pending model
+request, an executing Tool, or a failed Tool result. It does not provide worker
+leasing, locking, concurrent-claim protection, encryption, schema migration,
+or exactly-once semantics for external Tool side effects or arbitrary crash
+points. Checkpoints intentionally contain safe task evidence, but never model
+credentials, Base URLs, proxy configuration, provider-native responses,
+exception text, runtime file paths, or private diagnostic logs.
 
 ### Final-answer evidence gate
 

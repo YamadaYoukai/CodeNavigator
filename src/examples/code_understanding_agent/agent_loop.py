@@ -2,9 +2,19 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal, TypeAlias
 
+from .checkpoint import (
+    CheckpointContractError,
+    CheckpointRecord,
+    CheckpointResumeError,
+    CheckpointStore,
+    CompletedCheckpoint,
+    ResumableCheckpoint,
+    checkpoint_from_dict,
+)
 from .context import ContextBuilder, ContextState, ModelInput
 from .events import (
     FinalAnswer,
@@ -16,6 +26,7 @@ from .events import (
     ToolResult,
 )
 from .final_answer_evidence import validate_final_answer_evidence
+from .limits import MAX_TOOL_CALLS_PER_TASK
 from .model_boundary import (
     FinalAnswerDecision,
     ModelClient,
@@ -30,9 +41,6 @@ from .tool_step import (
     ToolStepOutcome,
 )
 from .trace import TraceRecorder
-
-
-MAX_TOOL_CALLS_PER_TASK = 6
 
 FailureTerminationReason: TypeAlias = Literal[
     "insufficient_evidence",
@@ -78,6 +86,8 @@ class AgentLoop:
         model: ModelClient,
         tool_step_executor: ToolStepExecutor,
         trace: TraceRecorder,
+        checkpoint_store: CheckpointStore | None = None,
+        on_checkpoint_saved: Callable[[ResumableCheckpoint], None] | None = None,
     ) -> None:
         if not isinstance(context_builder, ContextBuilder):
             raise TypeError("context_builder must be a ContextBuilder")
@@ -87,11 +97,25 @@ class AgentLoop:
             raise TypeError("tool_step_executor must be a ToolStepExecutor")
         if not isinstance(trace, TraceRecorder):
             raise TypeError("trace must be a TraceRecorder")
+        if checkpoint_store is not None and (
+            not callable(getattr(checkpoint_store, "has_record", None))
+            or not callable(getattr(checkpoint_store, "load", None))
+            or not callable(getattr(checkpoint_store, "save", None))
+        ):
+            raise TypeError(
+                "checkpoint_store must provide has_record(), load(), and save()"
+            )
+        if on_checkpoint_saved is not None and not callable(on_checkpoint_saved):
+            raise TypeError("on_checkpoint_saved must be callable")
+        if on_checkpoint_saved is not None and checkpoint_store is None:
+            raise ValueError("on_checkpoint_saved requires checkpoint_store")
 
         self._context_builder = context_builder
         self._model = model
         self._tool_step_executor = tool_step_executor
         self._trace = trace
+        self._checkpoint_store = checkpoint_store
+        self._on_checkpoint_saved = on_checkpoint_saved
 
     async def run(self, initial_state: ContextState) -> AgentLoopOutcome:
         """Run sequential decisions until one success or stable failure terminal."""
@@ -100,6 +124,15 @@ class AgentLoop:
             raise TypeError("initial_state must be a ContextState")
         if self._trace.events or self._trace.is_finalized:
             raise ValueError("trace must be empty and unfinalized")
+        if (
+            self._checkpoint_store is not None
+            and self._checkpoint_store.has_record()
+        ):
+            # Validate the existing file as well as refusing to overwrite it.
+            self._checkpoint_store.load()
+            raise CheckpointResumeError(
+                "checkpoint store already contains a record"
+            )
 
         state = initial_state.model_copy(
             update={
@@ -121,6 +154,81 @@ class AgentLoop:
             )
         )
 
+        return await self._continue(
+            state=state,
+            model_input=model_input,
+            tool_calls_used=tool_calls_used,
+            step_number=step_number,
+            checkpoint_generation=0,
+        )
+
+    async def resume(self, checkpoint: CheckpointRecord) -> AgentLoopOutcome:
+        """Continue from one validated, current resumable checkpoint.
+
+        The caller restores ``checkpoint.trace`` first and uses that new
+        recorder for the loop, traced model, and Tool router. This method then
+        re-reads the store and checks every precondition before the first Step,
+        model call, or Tool call is permitted.
+        """
+
+        if isinstance(checkpoint, CompletedCheckpoint):
+            raise CheckpointResumeError("completed checkpoint cannot be resumed")
+        if not isinstance(checkpoint, ResumableCheckpoint):
+            raise TypeError("checkpoint must be a checkpoint record")
+        try:
+            validated_checkpoint = checkpoint_from_dict(checkpoint.to_payload())
+        except CheckpointContractError:
+            raise CheckpointResumeError("checkpoint contract is invalid") from None
+        if not isinstance(validated_checkpoint, ResumableCheckpoint):
+            raise CheckpointResumeError("completed checkpoint cannot be resumed")
+        checkpoint = validated_checkpoint
+        if self._checkpoint_store is None:
+            raise CheckpointResumeError(
+                "checkpoint_store is required to resume safely"
+            )
+
+        stored_record = self._checkpoint_store.load()
+        if isinstance(stored_record, CompletedCheckpoint):
+            raise CheckpointResumeError("completed checkpoint cannot be resumed")
+        if not isinstance(stored_record, ResumableCheckpoint):
+            raise CheckpointResumeError("stored checkpoint contract is invalid")
+        try:
+            validated_stored_record = checkpoint_from_dict(
+                stored_record.to_payload()
+            )
+        except CheckpointContractError:
+            raise CheckpointResumeError(
+                "stored checkpoint contract is invalid"
+            ) from None
+        if not isinstance(validated_stored_record, ResumableCheckpoint):
+            raise CheckpointResumeError("completed checkpoint cannot be resumed")
+        stored_record = validated_stored_record
+        if stored_record != checkpoint:
+            raise CheckpointResumeError("checkpoint is stale or was replaced")
+        if self._trace.is_finalized or self._trace.to_dict() != checkpoint.trace:
+            raise CheckpointResumeError(
+                "loop trace does not match the resumable checkpoint"
+            )
+
+        return await self._continue(
+            state=checkpoint.state.model_copy(deep=True),
+            model_input=checkpoint.next_model_input.model_copy(deep=True),
+            tool_calls_used=checkpoint.tool_calls_used,
+            step_number=checkpoint.next_step_number,
+            checkpoint_generation=checkpoint.generation,
+        )
+
+    async def _continue(
+        self,
+        *,
+        state: ContextState,
+        model_input: ModelInput,
+        tool_calls_used: int,
+        step_number: int,
+        checkpoint_generation: int,
+    ) -> AgentLoopOutcome:
+        """Run from either the initial Session or a validated recovery point."""
+
         while True:
             self._trace.append(
                 Step(
@@ -138,6 +246,7 @@ class AgentLoop:
                     reason,
                     state=state,
                     tool_calls_used=tool_calls_used,
+                    checkpoint_generation=checkpoint_generation,
                 )
 
             if not isinstance(decision, (FinalAnswerDecision, ToolCallDecision)):
@@ -145,12 +254,14 @@ class AgentLoop:
                     "harness_invariant_error",
                     state=state,
                     tool_calls_used=tool_calls_used,
+                    checkpoint_generation=checkpoint_generation,
                 )
             if not self._recorded_model_success_matches(decision):
                 return self._finish_failure(
                     "harness_invariant_error",
                     state=state,
                     tool_calls_used=tool_calls_used,
+                    checkpoint_generation=checkpoint_generation,
                 )
 
             if isinstance(decision, FinalAnswerDecision):
@@ -167,6 +278,7 @@ class AgentLoop:
                         "insufficient_evidence",
                         state=state,
                         tool_calls_used=tool_calls_used,
+                        checkpoint_generation=checkpoint_generation,
                     )
                 recorded_final = self._trace.finalize(
                     FinalAnswer(
@@ -177,11 +289,16 @@ class AgentLoop:
                         termination_reason="completed",
                     )
                 )
-                return AgentLoopOutcome(
+                outcome = AgentLoopOutcome(
                     final_answer=recorded_final.model_copy(deep=True),
                     final_state=state.model_copy(deep=True),
                     tool_calls_used=tool_calls_used,
                 )
+                self._mark_checkpoint_completed(
+                    outcome,
+                    checkpoint_generation=checkpoint_generation,
+                )
+                return outcome
 
             if (
                 tool_calls_used >= MAX_TOOL_CALLS_PER_TASK
@@ -191,6 +308,7 @@ class AgentLoop:
                     "tool_budget_exhausted",
                     state=state,
                     tool_calls_used=tool_calls_used,
+                    checkpoint_generation=checkpoint_generation,
                 )
 
             tool_calls_used += 1
@@ -201,6 +319,7 @@ class AgentLoop:
                     "harness_invariant_error",
                     state=state,
                     tool_calls_used=tool_calls_used,
+                    checkpoint_generation=checkpoint_generation,
                 )
 
             if not self._valid_tool_outcome(state, decision, outcome):
@@ -208,6 +327,7 @@ class AgentLoop:
                     "harness_invariant_error",
                     state=state,
                     tool_calls_used=tool_calls_used,
+                    checkpoint_generation=checkpoint_generation,
                 )
 
             tool_result = outcome.tool_result
@@ -216,6 +336,7 @@ class AgentLoop:
                     "harness_invariant_error",
                     state=state,
                     tool_calls_used=tool_calls_used,
+                    checkpoint_generation=checkpoint_generation,
                 )
 
             state = outcome.next_state
@@ -229,10 +350,26 @@ class AgentLoop:
                     reason,
                     state=state,
                     tool_calls_used=tool_calls_used,
+                    checkpoint_generation=checkpoint_generation,
                 )
 
             model_input = outcome.next_model_input
             step_number += 1
+            if self._checkpoint_store is not None:
+                checkpoint_generation += 1
+                checkpoint = ResumableCheckpoint(
+                    task_id=self._trace.task_id,
+                    generation=checkpoint_generation,
+                    state=state.model_copy(deep=True),
+                    next_model_input=model_input.model_copy(deep=True),
+                    tool_calls_used=tool_calls_used,
+                    remaining_tool_calls=state.remaining_tool_calls,
+                    next_step_number=step_number,
+                    trace=self._trace.to_dict(),
+                )
+                self._checkpoint_store.save(checkpoint)
+                if self._on_checkpoint_saved is not None:
+                    self._on_checkpoint_saved(checkpoint.model_copy(deep=True))
 
     def _recorded_model_success_matches(
         self,
@@ -312,6 +449,7 @@ class AgentLoop:
         *,
         state: ContextState,
         tool_calls_used: int,
+        checkpoint_generation: int,
     ) -> AgentLoopOutcome:
         recorded_final = self._trace.finalize(
             FinalAnswer(
@@ -322,8 +460,34 @@ class AgentLoop:
                 termination_reason=reason,
             )
         )
-        return AgentLoopOutcome(
+        outcome = AgentLoopOutcome(
             final_answer=recorded_final.model_copy(deep=True),
             final_state=state.model_copy(deep=True),
             tool_calls_used=tool_calls_used,
+        )
+        self._mark_checkpoint_completed(
+            outcome,
+            checkpoint_generation=checkpoint_generation,
+        )
+        return outcome
+
+    def _mark_checkpoint_completed(
+        self,
+        outcome: AgentLoopOutcome,
+        *,
+        checkpoint_generation: int,
+    ) -> None:
+        """Atomically replace an existing resumable generation after terminal."""
+
+        if self._checkpoint_store is None or checkpoint_generation == 0:
+            return
+        self._checkpoint_store.save(
+            CompletedCheckpoint(
+                task_id=self._trace.task_id,
+                generation=checkpoint_generation + 1,
+                final_state=outcome.final_state.model_copy(deep=True),
+                tool_calls_used=outcome.tool_calls_used,
+                remaining_tool_calls=outcome.final_state.remaining_tool_calls,
+                trace=self._trace.to_dict(),
+            )
         )

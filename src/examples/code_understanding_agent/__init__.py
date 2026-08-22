@@ -1,6 +1,22 @@
 """Trace, tool-routing, and deterministic-context blocks for the agent example."""
 
 from .agent_loop import AgentLoop, AgentLoopOutcome, MAX_TOOL_CALLS_PER_TASK
+from .checkpoint import (
+    CHECKPOINT_SCHEMA_VERSION,
+    COMPLETED_PHASE,
+    RESUMABLE_PHASE,
+    CheckpointContractError,
+    CheckpointError,
+    CheckpointRecord,
+    CheckpointResumeError,
+    CheckpointStore,
+    CheckpointStoreError,
+    CompletedCheckpoint,
+    FileCheckpointStore,
+    ResumableCheckpoint,
+    checkpoint_from_dict,
+    checkpoint_from_json,
+)
 from .context import (
     ContextBuilder,
     ContextState,
@@ -73,6 +89,15 @@ from .tool_router import (
 __all__ = [
     "AgentLoop",
     "AgentLoopOutcome",
+    "CHECKPOINT_SCHEMA_VERSION",
+    "COMPLETED_PHASE",
+    "CheckpointContractError",
+    "CheckpointError",
+    "CheckpointRecord",
+    "CheckpointResumeError",
+    "CheckpointStore",
+    "CheckpointStoreError",
+    "CompletedCheckpoint",
     "ContextBuilder",
     "ContextState",
     "Evidence",
@@ -82,6 +107,7 @@ __all__ = [
     "FinalAnswerCitation",
     "FinalAnswerDecision",
     "FinalAnswerEvidenceValidation",
+    "FileCheckpointStore",
     "ALLOWED_TOOL_NAMES",
     "GET_FILE_CONTEXT",
     "GetFileContextArguments",
@@ -99,6 +125,8 @@ __all__ = [
     "PydanticToolAdapter",
     "RepositoryAliasResolver",
     "RepositoryHint",
+    "RESUMABLE_PHASE",
+    "ResumableCheckpoint",
     "Router",
     "SEARCH_CODE",
     "SearchCodeArguments",
@@ -124,6 +152,8 @@ __all__ = [
     "build_final_answer_response_format",
     "build_messages",
     "build_tools",
+    "checkpoint_from_dict",
+    "checkpoint_from_json",
     "collect_allowed_final_answer_evidence",
     "validate_final_answer_evidence",
 ]

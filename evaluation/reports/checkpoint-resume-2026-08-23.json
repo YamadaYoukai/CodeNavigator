@@ -1,0 +1,86 @@
+{
+  "checkpoint": {
+    "completed_generation": 2,
+    "completed_sha256": "19ecf5c0fa34dcba9e0b2a9a7c57ae2465f0064beb5db13af611b916fa7f4079",
+    "resumable_generation": 1,
+    "resumable_sha256": "cae98afa691ce6d874d5fb2fced1ba4650901be19411511dbf41265e0715ad03",
+    "schema_version": 1
+  },
+  "evidence": "durable_agent_loop_checkpoint_resume",
+  "executed_on": "2026-08-23",
+  "honest_boundary": [
+    "No real model or Zoekt service was called.",
+    "Only the boundary after one successful ToolResult is recoverable.",
+    "No concurrent-worker, external-side-effect, or arbitrary-crash exactly-once claim is made.",
+    "This synthetic fixture is recovery evidence, not one of the five final M4 incident cases."
+  ],
+  "processes": {
+    "a": {
+      "exit_code": 75,
+      "status": "checkpoint_saved_then_interrupted"
+    },
+    "b": {
+      "exit_code": 0,
+      "status": "completed"
+    }
+  },
+  "proof": {
+    "completed_record_rejects_resume": true,
+    "final_evidence": [
+      "click/src/click/types.py:491"
+    ],
+    "final_reason": "completed",
+    "next_input_contains_saved_fact": true,
+    "process_a_model_call_count": 1,
+    "process_b_received_exact_saved_input": true,
+    "tool_execution_count_across_processes": 1
+  },
+  "redaction": {
+    "credentials_or_provider_payloads_recorded": false,
+    "runtime_checkpoint_path_recorded": false
+  },
+  "scenario": {
+    "counts_as_m4_final_incident_case": false,
+    "fixture": "synthetic-public-click-datetime-conversion",
+    "repository": "click",
+    "source_location": "click/src/click/types.py:491"
+  },
+  "schema_version": 1,
+  "trace": {
+    "after_resume_event_types": [
+      "session",
+      "step",
+      "model_request",
+      "model_result",
+      "tool_call",
+      "tool_result",
+      "step",
+      "model_request",
+      "model_result",
+      "final_answer"
+    ],
+    "after_resume_sequences": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "before_resume_event_types": [
+      "session",
+      "step",
+      "model_request",
+      "model_result",
+      "tool_call",
+      "tool_result"
+    ],
+    "session_count": 1,
+    "terminal_count": 1,
+    "tool_result_count": 1
+  }
+}
