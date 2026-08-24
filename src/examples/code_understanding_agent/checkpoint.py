@@ -350,6 +350,29 @@ def _restore_canonical_trace(
     return trace
 
 
+def _json_values_are_identical(left: object, right: object) -> bool:
+    """Compare JSON values without Python's bool/number equivalence."""
+
+    if isinstance(left, Mapping):
+        if not isinstance(right, Mapping) or set(left) != set(right):
+            return False
+        return all(
+            _json_values_are_identical(left[key], right[key]) for key in left
+        )
+    if isinstance(right, Mapping):
+        return False
+    if isinstance(left, list):
+        if not isinstance(right, list) or len(left) != len(right):
+            return False
+        return all(
+            _json_values_are_identical(left_item, right_item)
+            for left_item, right_item in zip(left, right, strict=True)
+        )
+    if isinstance(right, list):
+        return False
+    return type(left) is type(right) and left == right
+
+
 def _validate_tool_decision_call(
     decision: ToolCallDecision,
     call: ToolCall,
@@ -359,7 +382,7 @@ def _validate_tool_decision_call(
 
     if call.call_id != decision.call_id or call.tool_name != decision.tool_name:
         raise ValueError("trace tool call identity does not match model decision")
-    if call.arguments == decision.arguments:
+    if _json_values_are_identical(call.arguments, decision.arguments):
         return
 
     model_call = ToolCall(
@@ -373,7 +396,10 @@ def _validate_tool_decision_call(
         raise ValueError(
             "trace tool arguments do not match model decision"
         ) from None
-    if call.arguments != resolved_call.arguments:
+    if not _json_values_are_identical(
+        call.arguments,
+        resolved_call.arguments,
+    ):
         raise ValueError("trace tool arguments do not match model decision")
 
 

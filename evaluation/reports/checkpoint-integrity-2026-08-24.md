@@ -1,5 +1,13 @@
 # Checkpoint semantic-integrity repair evidence
 
+> Correction recorded on `2026-08-25`: this report's original pass verdict was
+> incomplete. Ordinary Python dictionary equality treated JSON `true` as equal
+> to `1` and integer `3` as equal to floating-point `3.0`, so those two
+> ToolCall-only type drifts still crossed both resumable and completed
+> validation in commit `8db66ae`. The original evidence remains below as a
+> historical record; the superseding counterexample, repair, and acceptance
+> evidence are in `checkpoint-scalar-integrity-2026-08-25.md`.
+
 ## Result
 
 - Executed on: `2026-08-24` (Asia/Shanghai).

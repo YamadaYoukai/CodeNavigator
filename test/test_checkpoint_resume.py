@@ -13,6 +13,7 @@ from src.examples.code_understanding_agent import (
     AgentLoop,
     CheckpointContractError,
     CheckpointResumeError,
+    CheckpointStoreError,
     CompletedCheckpoint,
     ContextBuilder,
     ContextState,
@@ -359,7 +360,9 @@ def _event_payload(payload, event_type: str):
         pytest.param("query", "tampered query", id="query"),
         pytest.param("path", "tampered/path", id="path"),
         pytest.param("limit", 4, id="limit"),
+        pytest.param("limit", 3.0, id="limit-int-to-float"),
         pytest.param("literal", False, id="literal"),
+        pytest.param("literal", 1, id="literal-bool-to-int"),
     ],
 )
 def test_resumable_rejects_non_repository_tool_argument_drift(
@@ -470,8 +473,50 @@ def test_resumable_accepts_original_or_uniquely_resolved_repository_name(
     assert outcome.final_answer.termination_reason == "completed"
 
 
-def write_completed_checkpoint(tmp_path):
-    store, checkpoint, _ = write_process_a_checkpoint(tmp_path)
+@pytest.mark.parametrize(
+    ("argument_name", "tampered_value"),
+    [
+        pytest.param("limit", 3.0, id="limit-int-to-float"),
+        pytest.param("literal", 1, id="literal-bool-to-int"),
+    ],
+)
+def test_resumable_rejects_type_drift_after_repository_alias_resolution(
+    tmp_path,
+    argument_name: str,
+    tampered_value: object,
+) -> None:
+    hints = (
+        RepositoryHint(
+            canonical_name="click",
+            aliases=("pallets/click",),
+        ),
+    )
+    resolver = RepositoryAliasResolver(hints)
+    _, checkpoint, _ = write_process_a_checkpoint(
+        tmp_path,
+        tool_arguments={
+            "query": "DateTime convert formats",
+            "repo": "pallets/click",
+            "limit": 3,
+            "literal": True,
+        },
+        repository_hints=hints,
+        call_resolver=resolver,
+    )
+    payload = deepcopy(checkpoint.to_payload())
+    _event_payload(payload, "tool_call")["arguments"][argument_name] = (
+        tampered_value
+    )
+
+    with pytest.raises(CheckpointContractError):
+        checkpoint_from_dict(payload)
+
+
+def write_completed_checkpoint(tmp_path, *, tool_arguments=None):
+    store, checkpoint, _ = write_process_a_checkpoint(
+        tmp_path,
+        tool_arguments=tool_arguments,
+    )
     trace = checkpoint.restore_trace()
     loop, _ = build_loop(
         trace=trace,
@@ -498,15 +543,48 @@ def write_completed_checkpoint(tmp_path):
     return completed
 
 
-def test_completed_rejects_tool_argument_drift(tmp_path) -> None:
-    completed = write_completed_checkpoint(tmp_path)
+@pytest.mark.parametrize(
+    ("argument_name", "tampered_value"),
+    [
+        pytest.param("query", "tampered completed query", id="query"),
+        pytest.param("limit", 3.0, id="limit-int-to-float"),
+        pytest.param("literal", 1, id="literal-bool-to-int"),
+    ],
+)
+def test_completed_rejects_tool_argument_drift(
+    tmp_path,
+    argument_name: str,
+    tampered_value: object,
+) -> None:
+    completed = write_completed_checkpoint(
+        tmp_path,
+        tool_arguments={
+            "query": "DateTime convert formats",
+            "repo": "click",
+            "limit": 3,
+            "literal": True,
+        },
+    )
     payload = deepcopy(completed.to_payload())
-    _event_payload(payload, "tool_call")["arguments"]["query"] = (
-        "tampered completed query"
+    _event_payload(payload, "tool_call")["arguments"][argument_name] = (
+        tampered_value
     )
 
     with pytest.raises(CheckpointContractError):
         checkpoint_from_dict(payload)
+    tampered_path = tmp_path / "tampered-completed.json"
+    tampered_path.write_text(
+        json.dumps(
+            payload,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(CheckpointStoreError, match="checkpoint file is invalid"):
+        FileCheckpointStore(tampered_path).load()
 
 
 @pytest.mark.parametrize(
@@ -550,19 +628,39 @@ class SpyRouter:
         return ToolResult(call_id="must-not-run", status="success", result={})
 
 
+@pytest.mark.parametrize(
+    ("argument_name", "tampered_value"),
+    [
+        pytest.param("query", "tampered query", id="query"),
+        pytest.param("limit", 3.0, id="limit-int-to-float"),
+        pytest.param("literal", 1, id="literal-bool-to-int"),
+    ],
+)
 def test_resume_rejects_tampered_tool_arguments_before_model_or_tool(
     tmp_path,
+    argument_name: str,
+    tampered_value: object,
 ) -> None:
-    store, checkpoint, _ = write_process_a_checkpoint(tmp_path)
+    store, checkpoint, _ = write_process_a_checkpoint(
+        tmp_path,
+        tool_arguments={
+            "query": "DateTime convert formats",
+            "repo": "click",
+            "limit": 3,
+            "literal": True,
+        },
+    )
     payload = deepcopy(checkpoint.to_payload())
-    _event_payload(payload, "tool_call")["arguments"]["query"] = (
-        "tampered query"
+    _event_payload(payload, "tool_call")["arguments"][argument_name] = (
+        tampered_value
     )
     tampered = checkpoint.model_copy(
         update={"trace": payload["trace"]},
         deep=True,
     )
     store.path.write_text(tampered.to_json() + "\n", encoding="utf-8")
+    with pytest.raises(CheckpointStoreError, match="checkpoint file is invalid"):
+        store.load()
     trace = tampered.restore_trace()
     original_trace = trace.to_dict()
     model = SpyModel()

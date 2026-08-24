@@ -84,7 +84,10 @@ and every argument. The only permitted argument change is the existing
 unique canonical name. The validator calls that resolver with the checkpoint's
 saved `repository_hints`; it has no duplicate case, URL, basename, suffix, or
 fuzzy logic. Unknown or ambiguous names and every non-repository argument drift
-are rejected. The same helper validates resumable and completed traces.
+are rejected. Argument identity is recursive JSON type-and-value identity, not
+ordinary Python equality: `true` is distinct from `1`, and integer `3` is
+distinct from floating-point `3.0`. The same helper validates resumable and
+completed traces, both before and after the permitted repository rewrite.
 
 The latest saved fact is recomputed from the last decision and successful Tool
 result. It must be the first fact in `ContextState`, and rebuilding with that
