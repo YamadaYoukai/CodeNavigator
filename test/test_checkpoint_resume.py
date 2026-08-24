@@ -25,6 +25,8 @@ from src.examples.code_understanding_agent import (
     GetFileContextArguments,
     ModelInput,
     PydanticToolAdapter,
+    RepositoryAliasResolver,
+    RepositoryHint,
     ResumableCheckpoint,
     SEARCH_CODE,
     SearchCodeArguments,
@@ -66,6 +68,7 @@ def build_loop(
     store: FileCheckpointStore,
     search_handler,
     on_checkpoint_saved=None,
+    call_resolver=None,
 ):
     builder = ContextBuilder()
     fake_model = FakeModel(decisions)
@@ -93,6 +96,7 @@ def build_loop(
                 get_file_context,
             ),
         },
+        call_resolver=call_resolver,
     )
     loop = AgentLoop(
         context_builder=builder,
@@ -108,7 +112,14 @@ def build_loop(
     return loop, fake_model
 
 
-def write_process_a_checkpoint(tmp_path):
+def write_process_a_checkpoint(
+    tmp_path,
+    *,
+    tool_arguments=None,
+    repository_hints=(),
+    call_resolver=None,
+    remaining_tool_calls=1,
+):
     path = tmp_path / "agent-checkpoint.json"
     store = FileCheckpointStore(path)
     trace = TraceRecorder(task_id="resume-datetime-task")
@@ -128,18 +139,21 @@ def write_process_a_checkpoint(tmp_path):
             ToolCallDecision(
                 call_id="call-datetime",
                 tool_name=SEARCH_CODE,
-                arguments={"query": "DateTime convert formats", "repo": "click"},
+                arguments=tool_arguments
+                or {"query": "DateTime convert formats", "repo": "click"},
             ),
         ),
         store=store,
         search_handler=search_code,
         on_checkpoint_saved=interrupt_after_durable_save,
+        call_resolver=call_resolver,
     )
     state = ContextState(
         system_instruction="Answer only from verified Click source evidence.",
         current_task=TASK,
+        repository_hints=repository_hints,
         evidence_item_budget=0,
-        remaining_tool_calls=1,
+        remaining_tool_calls=remaining_tool_calls,
     )
 
     with pytest.raises(SimulatedProcessInterruption, match="simulated process exit"):
@@ -331,6 +345,193 @@ def test_illegal_checkpoint_contracts_fail_closed(mutate, tmp_path) -> None:
         checkpoint_from_dict(payload)
 
 
+def _event_payload(payload, event_type: str):
+    return next(
+        event
+        for event in payload["trace"]["events"]
+        if event["event_type"] == event_type
+    )
+
+
+@pytest.mark.parametrize(
+    ("argument_name", "tampered_value"),
+    [
+        pytest.param("query", "tampered query", id="query"),
+        pytest.param("path", "tampered/path", id="path"),
+        pytest.param("limit", 4, id="limit"),
+        pytest.param("literal", False, id="literal"),
+    ],
+)
+def test_resumable_rejects_non_repository_tool_argument_drift(
+    tmp_path,
+    argument_name: str,
+    tampered_value: object,
+) -> None:
+    _, checkpoint, _ = write_process_a_checkpoint(
+        tmp_path,
+        tool_arguments={
+            "query": "DateTime convert formats",
+            "repo": "click",
+            "path": "src/click",
+            "limit": 3,
+            "literal": True,
+        },
+    )
+    payload = deepcopy(checkpoint.to_payload())
+    _event_payload(payload, "tool_call")["arguments"][argument_name] = (
+        tampered_value
+    )
+
+    with pytest.raises(CheckpointContractError):
+        checkpoint_from_dict(payload)
+
+
+@pytest.mark.parametrize("model_repository", ["CLICK", "unknown/click", "shared"])
+def test_resumable_rejects_repository_values_that_are_not_unique_exact_aliases(
+    tmp_path,
+    model_repository: str,
+) -> None:
+    hints = (
+        RepositoryHint(
+            canonical_name="click",
+            aliases=("pallets/click", "shared"),
+        ),
+        RepositoryHint(
+            canonical_name="click-fork",
+            aliases=("shared",),
+        ),
+    )
+    resolver = RepositoryAliasResolver(hints)
+    _, checkpoint, _ = write_process_a_checkpoint(
+        tmp_path,
+        repository_hints=hints,
+        call_resolver=resolver,
+    )
+    payload = deepcopy(checkpoint.to_payload())
+    model_result = _event_payload(payload, "model_result")
+    model_result["decision"]["arguments"]["repo"] = model_repository
+
+    with pytest.raises(CheckpointContractError):
+        checkpoint_from_dict(payload)
+
+
+@pytest.mark.parametrize("model_repository", ["click", "pallets/click"])
+def test_resumable_accepts_original_or_uniquely_resolved_repository_name(
+    tmp_path,
+    model_repository: str,
+) -> None:
+    hints = (
+        RepositoryHint(
+            canonical_name="click",
+            aliases=("pallets/click",),
+        ),
+    )
+    resolver = RepositoryAliasResolver(hints)
+    store, checkpoint, _ = write_process_a_checkpoint(
+        tmp_path,
+        tool_arguments={
+            "query": "DateTime convert formats",
+            "repo": model_repository,
+        },
+        repository_hints=hints,
+        call_resolver=resolver,
+    )
+
+    call = next(
+        event for event in checkpoint.restore_trace().events
+        if isinstance(event, ToolCall)
+    )
+    assert call.arguments["repo"] == "click"
+    assert store.load() == checkpoint
+
+    resumed_trace = checkpoint.restore_trace()
+    loop, model = build_loop(
+        trace=resumed_trace,
+        decisions=(
+            FinalAnswerDecision(
+                answer="Click tries every configured format before failing.",
+                evidence=(
+                    FinalAnswerCitation(
+                        repo="click",
+                        path="src/click/types.py",
+                        line=491,
+                    ),
+                ),
+            ),
+        ),
+        store=store,
+        search_handler=lambda **_: pytest.fail("completed Tool must not repeat"),
+        call_resolver=resolver,
+    )
+
+    outcome = asyncio.run(loop.resume(checkpoint))
+
+    assert model.model_inputs == (checkpoint.next_model_input,)
+    assert outcome.final_answer.termination_reason == "completed"
+
+
+def write_completed_checkpoint(tmp_path):
+    store, checkpoint, _ = write_process_a_checkpoint(tmp_path)
+    trace = checkpoint.restore_trace()
+    loop, _ = build_loop(
+        trace=trace,
+        decisions=(
+            FinalAnswerDecision(
+                answer="Click tries every configured format before failing.",
+                evidence=(
+                    FinalAnswerCitation(
+                        repo="click",
+                        path="src/click/types.py",
+                        line=491,
+                    ),
+                ),
+                uncertainties=("Only the recorded source line was checked.",),
+                next_queries=("Inspect the conversion loop.",),
+            ),
+        ),
+        store=store,
+        search_handler=lambda **_: pytest.fail("completed Tool must not repeat"),
+    )
+    asyncio.run(loop.resume(checkpoint))
+    completed = store.load()
+    assert isinstance(completed, CompletedCheckpoint)
+    return completed
+
+
+def test_completed_rejects_tool_argument_drift(tmp_path) -> None:
+    completed = write_completed_checkpoint(tmp_path)
+    payload = deepcopy(completed.to_payload())
+    _event_payload(payload, "tool_call")["arguments"]["query"] = (
+        "tampered completed query"
+    )
+
+    with pytest.raises(CheckpointContractError):
+        checkpoint_from_dict(payload)
+
+
+@pytest.mark.parametrize(
+    ("field_name", "tampered_value"),
+    [
+        pytest.param("answer", "tampered final answer", id="answer"),
+        pytest.param("evidence", [], id="evidence"),
+        pytest.param("uncertainties", [], id="uncertainties"),
+        pytest.param("next_queries", [], id="next-queries"),
+        pytest.param("termination_reason", "tool_error", id="termination-reason"),
+    ],
+)
+def test_completed_rejects_final_answer_drift(
+    tmp_path,
+    field_name: str,
+    tampered_value: object,
+) -> None:
+    completed = write_completed_checkpoint(tmp_path)
+    payload = deepcopy(completed.to_payload())
+    payload["trace"]["events"][-1][field_name] = tampered_value
+
+    with pytest.raises(CheckpointContractError):
+        checkpoint_from_dict(payload)
+
+
 class SpyModel:
     def __init__(self) -> None:
         self.calls = 0
@@ -347,6 +548,235 @@ class SpyRouter:
     async def execute(self, _: ToolCall) -> ToolResult:
         self.calls += 1
         return ToolResult(call_id="must-not-run", status="success", result={})
+
+
+def test_resume_rejects_tampered_tool_arguments_before_model_or_tool(
+    tmp_path,
+) -> None:
+    store, checkpoint, _ = write_process_a_checkpoint(tmp_path)
+    payload = deepcopy(checkpoint.to_payload())
+    _event_payload(payload, "tool_call")["arguments"]["query"] = (
+        "tampered query"
+    )
+    tampered = checkpoint.model_copy(
+        update={"trace": payload["trace"]},
+        deep=True,
+    )
+    store.path.write_text(tampered.to_json() + "\n", encoding="utf-8")
+    trace = tampered.restore_trace()
+    original_trace = trace.to_dict()
+    model = SpyModel()
+    router = SpyRouter()
+    loop = AgentLoop(
+        context_builder=ContextBuilder(),
+        model=model,
+        tool_step_executor=ToolStepExecutor(router=router),
+        trace=trace,
+        checkpoint_store=store,
+    )
+
+    with pytest.raises(CheckpointResumeError, match="contract is invalid"):
+        asyncio.run(loop.resume(tampered))
+
+    assert model.calls == 0
+    assert router.calls == 0
+    assert trace.to_dict() == original_trace
+
+
+class TerminalBoundaryModel:
+    def __init__(self, trigger: object) -> None:
+        self.trigger = trigger
+        self.calls = 0
+
+    def decide(self, _: ModelInput) -> object:
+        self.calls += 1
+        if isinstance(self.trigger, BaseException):
+            raise self.trigger
+        return self.trigger
+
+
+def resume_with_boundary_model(
+    checkpoint: ResumableCheckpoint,
+    store: FileCheckpointStore,
+    model: TerminalBoundaryModel,
+    router: object,
+):
+    trace = checkpoint.restore_trace()
+    traced_model = TracedModelClient(
+        client=model,  # type: ignore[arg-type]
+        model="terminal-boundary-model",
+        trace=trace,
+        request_id_factory=lambda: "terminal-request",
+        clock=lambda: 0.0,
+    )
+    loop = AgentLoop(
+        context_builder=ContextBuilder(),
+        model=traced_model,
+        tool_step_executor=ToolStepExecutor(router=router),  # type: ignore[arg-type]
+        trace=trace,
+        checkpoint_store=store,
+    )
+    outcome = asyncio.run(loop.resume(checkpoint))
+    completed = store.load()
+    assert isinstance(completed, CompletedCheckpoint)
+    return outcome, completed
+
+
+@pytest.mark.parametrize(
+    ("trigger", "expected_reason"),
+    [
+        pytest.param(
+            RuntimeError("private model error"),
+            "model_execution_error",
+            id="model-execution-error",
+        ),
+        pytest.param(
+            {"invalid": "decision"},
+            "invalid_model_output",
+            id="invalid-model-output",
+        ),
+        pytest.param(
+            TimeoutError("private timeout"),
+            "model_timeout",
+            id="model-timeout",
+        ),
+    ],
+)
+def test_completed_accepts_correlated_model_failure_terminals(
+    tmp_path,
+    trigger: object,
+    expected_reason: str,
+) -> None:
+    store, checkpoint, _ = write_process_a_checkpoint(tmp_path)
+    model = TerminalBoundaryModel(trigger)
+    router = SpyRouter()
+
+    outcome, completed = resume_with_boundary_model(
+        checkpoint,
+        store,
+        model,
+        router,
+    )
+
+    assert model.calls == 1
+    assert router.calls == 0
+    assert outcome.final_answer.termination_reason == expected_reason
+    assert completed.trace["events"][-1]["termination_reason"] == expected_reason
+
+
+def test_completed_accepts_insufficient_evidence_terminal(tmp_path) -> None:
+    store, checkpoint, _ = write_process_a_checkpoint(tmp_path)
+    trace = checkpoint.restore_trace()
+    loop, _ = build_loop(
+        trace=trace,
+        decisions=(FinalAnswerDecision(answer="Unsupported answer."),),
+        store=store,
+        search_handler=lambda **_: pytest.fail("completed Tool must not repeat"),
+    )
+
+    outcome = asyncio.run(loop.resume(checkpoint))
+
+    assert outcome.final_answer.termination_reason == "insufficient_evidence"
+    assert isinstance(store.load(), CompletedCheckpoint)
+
+
+def test_completed_accepts_tool_budget_terminal(tmp_path) -> None:
+    store, checkpoint, _ = write_process_a_checkpoint(tmp_path)
+    trace = checkpoint.restore_trace()
+    loop, _ = build_loop(
+        trace=trace,
+        decisions=(
+            ToolCallDecision(
+                call_id="call-over-budget",
+                tool_name=SEARCH_CODE,
+                arguments={"query": "must not execute", "repo": "click"},
+            ),
+        ),
+        store=store,
+        search_handler=lambda **_: pytest.fail("over-budget Tool must not run"),
+    )
+
+    outcome = asyncio.run(loop.resume(checkpoint))
+
+    assert outcome.final_answer.termination_reason == "tool_budget_exhausted"
+    assert isinstance(store.load(), CompletedCheckpoint)
+
+
+@pytest.mark.parametrize(
+    ("exception_type", "expected_reason"),
+    [
+        pytest.param(RuntimeError, "tool_error", id="tool-error"),
+        pytest.param(TimeoutError, "tool_timeout", id="tool-timeout"),
+    ],
+)
+def test_completed_accepts_correlated_tool_failure_terminals(
+    tmp_path,
+    exception_type: type[Exception],
+    expected_reason: str,
+) -> None:
+    store, checkpoint, _ = write_process_a_checkpoint(
+        tmp_path,
+        remaining_tool_calls=2,
+    )
+    trace = checkpoint.restore_trace()
+
+    def fail_tool(**_: object) -> object:
+        raise exception_type("private Tool failure")
+
+    loop, _ = build_loop(
+        trace=trace,
+        decisions=(
+            ToolCallDecision(
+                call_id="call-failure",
+                tool_name=SEARCH_CODE,
+                arguments={"query": "trigger failure", "repo": "click"},
+            ),
+        ),
+        store=store,
+        search_handler=fail_tool,
+    )
+
+    outcome = asyncio.run(loop.resume(checkpoint))
+
+    assert outcome.final_answer.termination_reason == expected_reason
+    assert isinstance(store.load(), CompletedCheckpoint)
+
+
+class MissingResultRouter:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def execute(self, _: ToolCall) -> None:
+        self.calls += 1
+
+
+def test_completed_accepts_explainable_harness_invariant_terminal(
+    tmp_path,
+) -> None:
+    store, checkpoint, _ = write_process_a_checkpoint(
+        tmp_path,
+        remaining_tool_calls=2,
+    )
+    model = TerminalBoundaryModel(
+        ToolCallDecision(
+            call_id="call-missing-result",
+            tool_name=SEARCH_CODE,
+            arguments={"query": "missing result", "repo": "click"},
+        )
+    )
+    router = MissingResultRouter()
+
+    outcome, completed = resume_with_boundary_model(
+        checkpoint,
+        store,
+        model,
+        router,
+    )
+
+    assert model.calls == 1
+    assert router.calls == 1
+    assert outcome.final_answer.termination_reason == "harness_invariant_error"
+    assert completed.tool_calls_used == 2
 
 
 def test_resume_rejects_mismatched_loop_trace_before_model_or_tool(tmp_path) -> None:

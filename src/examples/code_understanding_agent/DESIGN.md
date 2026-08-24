@@ -76,6 +76,16 @@ initial request budget must be at most six, each request budget must decrease
 with its completed Tool pair, and the saved state, duplicated remaining budget,
 Tool count, and next step must agree with that history.
 
+Each saved Tool group also has one semantic correlation rule. The recorded
+`ToolCall` must match the preceding `ToolCallDecision` in `call_id`, tool name,
+and every argument. The only permitted argument change is the existing
+`RepositoryAliasResolver` transformation: `search_code.repo` or
+`get_file_context.repository` may move from one configured exact alias to its
+unique canonical name. The validator calls that resolver with the checkpoint's
+saved `repository_hints`; it has no duplicate case, URL, basename, suffix, or
+fuzzy logic. Unknown or ambiguous names and every non-repository argument drift
+are rejected. The same helper validates resumable and completed traces.
+
 The latest saved fact is recomputed from the last decision and successful Tool
 result. It must be the first fact in `ContextState`, and rebuilding with that
 one protected fact must reproduce the saved next `ModelInput` exactly. This
@@ -110,9 +120,15 @@ Once a loop that has written at least one resumable generation reaches any
 terminal, the store atomically advances to a `completed` record containing the
 final state and finalized trace. Completed records require exactly one terminal
 last event, correlated recorded model and Tool pairs, continuous budgets, and
-at least one prior successful Tool result. They cannot be advanced or resumed.
-A task that terminates before its first successful Tool result never creates a
-checkpoint file.
+at least one prior successful Tool result. A successful final model decision
+must exactly match the terminal answer, normalized evidence, uncertainties, and
+next queries, with `termination_reason="completed"`. A failure terminal must use
+the stable answer and reason derivable from the last model error, rejected
+evidence, exhausted budget, Tool error, timeout, or recorded Harness invariant.
+These terminal rules share the same stable failure-answer constructor used by
+`AgentLoop`; the checkpoint validator does not copy private error strings.
+Completed records cannot be advanced or resumed. A task that terminates before
+its first successful Tool result never creates a checkpoint file.
 
 This contract proves no duplicate execution of the already completed Tool only
 for this controlled recovery boundary. It does not recover a pending model

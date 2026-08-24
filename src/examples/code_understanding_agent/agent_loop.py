@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Literal, TypeAlias
 
 from .checkpoint import (
     CheckpointContractError,
@@ -34,6 +33,7 @@ from .model_boundary import (
     model_decision_to_trace_payload,
 )
 from .model_errors import ModelBoundaryError, ModelErrorType
+from .termination import FailureTerminationReason, build_failure_final_answer
 from .tool_router import GET_FILE_CONTEXT, SEARCH_CODE, ToolErrorCode
 from .tool_step import (
     ToolStepExecutor,
@@ -41,30 +41,6 @@ from .tool_step import (
     ToolStepOutcome,
 )
 from .trace import TraceRecorder
-
-FailureTerminationReason: TypeAlias = Literal[
-    "insufficient_evidence",
-    "tool_budget_exhausted",
-    "model_execution_error",
-    "invalid_model_output",
-    "tool_error",
-    "model_timeout",
-    "tool_timeout",
-    "harness_invariant_error",
-]
-
-_FAILURE_ANSWERS: dict[FailureTerminationReason, str] = {
-    "insufficient_evidence": (
-        "Insufficient verified tool evidence is available to answer the task."
-    ),
-    "tool_budget_exhausted": "The tool-call budget was exhausted.",
-    "model_execution_error": "Model execution failed.",
-    "invalid_model_output": "The model returned an invalid decision.",
-    "tool_error": "Tool execution failed.",
-    "model_timeout": "Model execution timed out.",
-    "tool_timeout": "Tool execution timed out.",
-    "harness_invariant_error": "An agent harness invariant failed.",
-}
 
 
 @dataclass(frozen=True, slots=True)
@@ -452,13 +428,7 @@ class AgentLoop:
         checkpoint_generation: int,
     ) -> AgentLoopOutcome:
         recorded_final = self._trace.finalize(
-            FinalAnswer(
-                answer=_FAILURE_ANSWERS[reason],
-                evidence=[],
-                uncertainties=[],
-                next_queries=[],
-                termination_reason=reason,
-            )
+            build_failure_final_answer(reason)
         )
         outcome = AgentLoopOutcome(
             final_answer=recorded_final.model_copy(deep=True),

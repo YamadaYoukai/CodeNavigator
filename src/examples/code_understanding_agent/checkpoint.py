@@ -18,7 +18,14 @@ from pydantic import (
     model_validator,
 )
 
-from .context import ContextBuilder, ContextState, Evidence, EvidenceKind, ModelInput
+from .context import (
+    ContextBuilder,
+    ContextState,
+    Evidence,
+    EvidenceKind,
+    ModelInput,
+    RepositoryHint,
+)
 from .events import (
     FinalAnswer,
     ModelRequest,
@@ -29,9 +36,21 @@ from .events import (
     ToolCall,
     ToolResult,
 )
+from .final_answer_evidence import validate_final_answer_evidence
 from .limits import MAX_TOOL_CALLS_PER_TASK
 from .model_boundary import ToolCallDecision
-from .tool_router import GET_FILE_CONTEXT, SEARCH_CODE
+from .repository_resolver import RepositoryAliasResolver
+from .termination import (
+    FAILURE_TERMINATION_REASONS,
+    FailureTerminationReason,
+    build_failure_final_answer,
+)
+from .tool_router import (
+    GET_FILE_CONTEXT,
+    SEARCH_CODE,
+    ToolCallResolutionError,
+    ToolErrorCode,
+)
 from .trace import TraceRecorder
 
 
@@ -42,6 +61,19 @@ COMPLETED_PHASE = "completed"
 StrictPositiveInt = Annotated[int, Field(strict=True, ge=1)]
 StrictGenerationAtLeastTwo = Annotated[int, Field(strict=True, ge=2)]
 StrictNonNegativeInt = Annotated[int, Field(strict=True, ge=0)]
+StrictNonEmptyText = Annotated[str, Field(strict=True, min_length=1)]
+
+
+class _RecordedFinalAnswerDecision(BaseModel):
+    """Canonical trace representation of a validated final model decision."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    decision_type: Literal["final_answer"]
+    answer: StrictNonEmptyText
+    evidence: tuple[StrictNonEmptyText, ...]
+    uncertainties: tuple[StrictNonEmptyText, ...]
+    next_queries: tuple[StrictNonEmptyText, ...]
 
 
 class CheckpointError(ValueError):
@@ -318,6 +350,84 @@ def _restore_canonical_trace(
     return trace
 
 
+def _validate_tool_decision_call(
+    decision: ToolCallDecision,
+    call: ToolCall,
+    repository_hints: Sequence[RepositoryHint],
+) -> None:
+    """Require an exact call or the resolver's one allowed repository rewrite."""
+
+    if call.call_id != decision.call_id or call.tool_name != decision.tool_name:
+        raise ValueError("trace tool call identity does not match model decision")
+    if call.arguments == decision.arguments:
+        return
+
+    model_call = ToolCall(
+        call_id=decision.call_id,
+        tool_name=decision.tool_name,
+        arguments=decision.arguments,
+    )
+    try:
+        resolved_call = RepositoryAliasResolver(repository_hints).resolve(model_call)
+    except (ToolCallResolutionError, TypeError, ValueError):
+        raise ValueError(
+            "trace tool arguments do not match model decision"
+        ) from None
+    if call.arguments != resolved_call.arguments:
+        raise ValueError("trace tool arguments do not match model decision")
+
+
+def _validated_final_answer_decision(
+    payload: Mapping[str, Any],
+) -> _RecordedFinalAnswerDecision:
+    try:
+        canonical_json = json.dumps(
+            dict(payload),
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+            allow_nan=False,
+        )
+        decision = _RecordedFinalAnswerDecision.model_validate_json(
+            canonical_json,
+            strict=True,
+        )
+    except (TypeError, ValueError, ValidationError):
+        raise ValueError("completed final model decision is invalid") from None
+    if decision.model_dump(mode="json") != payload:
+        raise ValueError("completed final model decision is not canonical")
+    return decision
+
+
+def _validate_success_final_answer(
+    final_answer: FinalAnswer,
+    decision: _RecordedFinalAnswerDecision,
+) -> None:
+    if (
+        final_answer.answer != decision.answer
+        or tuple(final_answer.evidence) != decision.evidence
+        or tuple(final_answer.uncertainties) != decision.uncertainties
+        or tuple(final_answer.next_queries) != decision.next_queries
+        or final_answer.termination_reason != "completed"
+    ):
+        raise ValueError("completed FinalAnswer does not match model decision")
+
+
+def _validate_failure_final_answer(
+    final_answer: FinalAnswer,
+    reason: FailureTerminationReason,
+) -> None:
+    expected = build_failure_final_answer(reason)
+    if (
+        final_answer.answer != expected.answer
+        or final_answer.evidence != expected.evidence
+        or final_answer.uncertainties != expected.uncertainties
+        or final_answer.next_queries != expected.next_queries
+        or final_answer.termination_reason != expected.termination_reason
+    ):
+        raise ValueError("completed failure FinalAnswer is inconsistent")
+
+
 def _validate_resumable_trace(
     checkpoint: ResumableCheckpoint,
     events: Sequence[RecordedEvent],
@@ -358,10 +468,13 @@ def _validate_resumable_trace(
             raise ValueError("resumable model result is not a tool decision") from None
         if not isinstance(call, ToolCall) or not isinstance(tool_result, ToolResult):
             raise ValueError("resumable trace tool pair is invalid")
+        _validate_tool_decision_call(
+            decision,
+            call,
+            checkpoint.state.repository_hints,
+        )
         if (
-            call.call_id != decision.call_id
-            or call.tool_name != decision.tool_name
-            or tool_result.call_id != call.call_id
+            tool_result.call_id != call.call_id
             or tool_result.status != "success"
         ):
             raise ValueError("resumable trace tool pair is not correlated")
@@ -479,6 +592,7 @@ def _validate_completed_trace(
         raise ValueError("completed trace must start with Session")
     if not isinstance(events[-1], FinalAnswer):
         raise ValueError("completed trace must end with FinalAnswer")
+    final_answer = events[-1]
     if sum(isinstance(event, Session) for event in events) != 1:
         raise ValueError("completed trace must contain one Session")
     if sum(isinstance(event, FinalAnswer) for event in events) != 1:
@@ -492,6 +606,8 @@ def _validate_completed_trace(
     model_requests: list[tuple[int, ModelInput]] = []
     tool_results: list[tuple[int, ToolResult]] = []
     ended_with_unrecorded_tool_attempt = False
+    terminal_failure_reason: FailureTerminationReason | None = None
+    terminal_success_decision: _RecordedFinalAnswerDecision | None = None
     terminal_index = len(events) - 1
     index = 1
     while index < terminal_index:
@@ -516,6 +632,9 @@ def _validate_completed_trace(
         if model_result.status == "error":
             if index != terminal_index:
                 raise ValueError("events follow a failed model result")
+            if model_result.error_type not in FAILURE_TERMINATION_REASONS:
+                raise ValueError("completed model failure type is invalid")
+            terminal_failure_reason = model_result.error_type
             break
 
         decision = model_result.decision
@@ -525,6 +644,16 @@ def _validate_completed_trace(
         if decision_type == "final_answer":
             if index != terminal_index:
                 raise ValueError("events follow a final model decision")
+            final_decision = _validated_final_answer_decision(decision)
+            evidence_validation = validate_final_answer_evidence(
+                final_decision.evidence,
+                events=events,
+                task_id=checkpoint.task_id,
+            )
+            if evidence_validation.is_valid:
+                terminal_success_decision = final_decision
+            else:
+                terminal_failure_reason = "insufficient_evidence"
             break
         if decision_type != "tool_call":
             raise ValueError("completed model decision type is invalid")
@@ -537,45 +666,60 @@ def _validate_completed_trace(
         # or a harness post-condition failed before a ToolCall was recorded.
         if index == terminal_index:
             ended_with_unrecorded_tool_attempt = True
+            if model_input.remaining_tool_calls == 0:
+                terminal_failure_reason = "tool_budget_exhausted"
+            else:
+                terminal_failure_reason = "harness_invariant_error"
             break
         if index + 1 >= terminal_index:
             raise ValueError("completed trace contains a dangling tool call")
         call, tool_result = events[index : index + 2]
         if not isinstance(call, ToolCall) or not isinstance(tool_result, ToolResult):
             raise ValueError("completed trace tool pair is invalid")
-        if (
-            call.call_id != tool_decision.call_id
-            or call.tool_name != tool_decision.tool_name
-            or tool_result.call_id != call.call_id
-        ):
+        _validate_tool_decision_call(
+            tool_decision,
+            call,
+            checkpoint.final_state.repository_hints,
+        )
+        if tool_result.call_id != call.call_id:
             raise ValueError("completed trace tool pair is not correlated")
         tool_results.append((index + 1, tool_result))
         index += 2
         if tool_result.status == "error" and index != terminal_index:
             raise ValueError("events follow a failed tool result")
+        if tool_result.status == "error":
+            if tool_result.error_type not in {
+                error_code.value for error_code in ToolErrorCode
+            }:
+                raise ValueError("completed Tool failure type is invalid")
+            if tool_result.error_type == ToolErrorCode.TOOL_TIMEOUT.value:
+                terminal_failure_reason = "tool_timeout"
+            else:
+                terminal_failure_reason = "tool_error"
+        elif index == terminal_index:
+            raise ValueError("successful Tool result has no following model step")
 
     if index != terminal_index:
         raise ValueError("completed trace does not reach its terminal exactly")
 
     if not model_requests:
         raise ValueError("completed checkpoint must contain a model request")
-    successful_results = [result for _, result in tool_results if result.status == "success"]
+    successful_results = [
+        result for _, result in tool_results if result.status == "success"
+    ]
     if not successful_results:
         raise ValueError("completed checkpoint must follow a resumable generation")
     recorded_tool_count = len(tool_results)
-    if checkpoint.tool_calls_used not in {
-        recorded_tool_count,
-        recorded_tool_count + 1,
-    }:
+    expected_tool_count = recorded_tool_count
+    if (
+        ended_with_unrecorded_tool_attempt
+        and terminal_failure_reason == "harness_invariant_error"
+    ):
+        expected_tool_count += 1
+    if checkpoint.tool_calls_used != expected_tool_count:
         raise ValueError("completed tool count does not match trace")
     if checkpoint.tool_calls_used > MAX_TOOL_CALLS_PER_TASK:
         raise ValueError("completed tool count exceeds the hard limit")
-    if checkpoint.tool_calls_used == recorded_tool_count + 1 and not (
-        ended_with_unrecorded_tool_attempt
-        and events[-1].termination_reason == "harness_invariant_error"
-    ):
-        raise ValueError("completed trace does not explain an unrecorded attempt")
-
     initial_budget = model_requests[0][1].remaining_tool_calls
     if initial_budget > MAX_TOOL_CALLS_PER_TASK:
         raise ValueError("completed initial budget exceeds the hard limit")
@@ -592,6 +736,15 @@ def _validate_completed_trace(
         or checkpoint.final_state.remaining_tool_calls != expected_remaining
     ):
         raise ValueError("completed checkpoint budgets do not agree")
+
+    if terminal_success_decision is not None:
+        if terminal_failure_reason is not None:
+            raise ValueError("completed trace has conflicting terminal semantics")
+        _validate_success_final_answer(final_answer, terminal_success_decision)
+    elif terminal_failure_reason is not None:
+        _validate_failure_final_answer(final_answer, terminal_failure_reason)
+    else:
+        raise ValueError("completed trace does not explain its FinalAnswer")
 
 
 def _validated_request_input(request: ModelRequest) -> ModelInput:
