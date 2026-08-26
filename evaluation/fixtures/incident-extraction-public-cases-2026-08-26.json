@@ -1,0 +1,147 @@
+[
+  {
+    "case_id": "java-exception-stack",
+    "input": {
+      "sources": [
+        {
+          "source_id": "description-001",
+          "source_type": "description",
+          "text": "Checkout requests fail immediately after deployment."
+        },
+        {
+          "source_id": "log-001",
+          "source_type": "log",
+          "text": "2026-08-26T09:15:00Z checkout-service request failed: java.lang.IllegalStateException: Missing configuration key payment.timeout"
+        },
+        {
+          "source_id": "stack-001",
+          "source_type": "stack_trace",
+          "text": "java.lang.IllegalStateException: Missing configuration key payment.timeout"
+        },
+        {
+          "source_id": "stack-002",
+          "source_type": "stack_trace",
+          "text": "    at com.example.checkout.OrderService.placeOrder(OrderService.java:42)"
+        }
+      ]
+    },
+    "candidate": {
+      "exception_class": {
+        "value": "java.lang.IllegalStateException",
+        "source_ids": [
+          "log-001",
+          "stack-001"
+        ]
+      },
+      "method": {
+        "value": "com.example.checkout.OrderService.placeOrder",
+        "source_ids": [
+          "stack-002"
+        ]
+      },
+      "error_text": {
+        "value": "Missing configuration key payment.timeout",
+        "source_ids": [
+          "log-001",
+          "stack-001"
+        ]
+      },
+      "service_name": {
+        "value": "checkout-service",
+        "source_ids": [
+          "log-001"
+        ]
+      },
+      "configuration_keys": [
+        {
+          "value": "payment.timeout",
+          "source_ids": [
+            "log-001",
+            "stack-001"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "case_id": "multiple-missing-configuration-keys",
+    "input": {
+      "sources": [
+        {
+          "source_id": "description-002",
+          "source_type": "description",
+          "text": "Invoice creation is unavailable after a clean startup."
+        },
+        {
+          "source_id": "log-002",
+          "source_type": "log",
+          "text": "service=invoice-service error=missing configuration keys: billing.currency, billing.region"
+        }
+      ]
+    },
+    "candidate": {
+      "exception_class": null,
+      "method": null,
+      "error_text": {
+        "value": "missing configuration keys",
+        "source_ids": [
+          "log-002"
+        ]
+      },
+      "service_name": {
+        "value": "invoice-service",
+        "source_ids": [
+          "log-002"
+        ]
+      },
+      "configuration_keys": [
+        {
+          "value": "billing.currency",
+          "source_ids": [
+            "log-002"
+          ]
+        },
+        {
+          "value": "billing.region",
+          "source_ids": [
+            "log-002"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "case_id": "unicode-and-missing-fields",
+    "input": {
+      "sources": [
+        {
+          "source_id": "description-003",
+          "source_type": "description",
+          "text": "用户提交订单时收到失败提示。"
+        },
+        {
+          "source_id": "log-003",
+          "source_type": "log",
+          "text": "订单服务 返回错误：库存不足"
+        }
+      ]
+    },
+    "candidate": {
+      "exception_class": null,
+      "method": null,
+      "error_text": {
+        "value": "库存不足",
+        "source_ids": [
+          "log-003"
+        ]
+      },
+      "service_name": {
+        "value": "订单服务",
+        "source_ids": [
+          "log-003"
+        ]
+      },
+      "configuration_keys": []
+    }
+  }
+]

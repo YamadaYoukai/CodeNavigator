@@ -471,3 +471,69 @@ from the task. This gives the future model the strongest available grounding
 while dropping lower-value history first. Whole entries are selected rather
 than token-truncated, avoiding tokenizer/model coupling and preserving a
 deterministic, inspectable contract.
+
+## Structured incident extraction boundary
+
+This boundary accepts only incident text that the caller has already reviewed
+and redacted. It does not discover secrets, scrub arbitrary logs, read local
+files, or send content to a model. Each `IncidentSource` is one caller-supplied
+line with a stable, unique `source_id`, one explicit type (`description`, `log`,
+or `stack_trace`), and non-empty text. Newline characters are rejected so a
+source ID always identifies one concrete line; leading indentation and all
+Unicode text are otherwise preserved exactly. Source IDs cannot contain
+whitespace. There is no implicit default, trimming, truncation, count limit, or
+length limit.
+
+`IncidentInput.sources` is ordered. Python callers provide a tuple and JSON
+callers provide the corresponding array. Duplicate IDs, unknown source types,
+wrong scalar/container types, additional fields, empty input, and whitespace-
+only text fail Pydantic's strict boundary rather than being repaired.
+
+### Frozen structured output
+
+An `IncidentExtractionCandidate` has exactly five required top-level fields:
+
+| Field | Missing representation | Non-empty representation |
+| --- | --- | --- |
+| `exception_class` | `null` | one sourced string |
+| `method` | `null` | one sourced string |
+| `error_text` | `null` | one sourced string |
+| `service_name` | `null` | one sourced string |
+| `configuration_keys` | `[]` | an ordered array of sourced strings |
+
+A sourced string contains only `value` and a non-empty ordered `source_ids`
+array. Root cause, confidence, recommendations, missing-information guesses,
+and arbitrary metadata are not part of this schema. Every top-level field must
+be emitted even when it is missing, so adapters cannot replace absence with
+`unknown`, `N/A`, or an omitted property. Configuration key order is retained;
+duplicate key values and duplicate source references are rejected.
+
+All strings are strict strings. In particular, JSON/Python `true`, integer `1`,
+and float `1.0` cannot substitute for one another or for text. After provenance
+validation, candidate and result payloads are also compared recursively by JSON
+container type, key identity, array order, scalar runtime type, and scalar
+value. This preserves the existing rule that ordinary Python equality must not
+hide scalar type drift.
+
+### Exact source-association gate
+
+`validate_incident_extraction` resolves references only by the stable source
+ID. For each non-null scalar and each configuration key, every cited ID must
+exist and the value must occur as one contiguous, case-sensitive substring in
+every cited source line. Case folding, normalization, fuzzy matching, array
+position, and partial citation success are not accepted. An invalid candidate
+raises `IncidentExtractionValidationError` and never becomes a trusted
+`IncidentExtractionResult`.
+
+`IncidentFieldExtractor` is an independent protocol. The offline
+`FakeIncidentFieldExtractor` returns a caller-scripted candidate and records
+detached input snapshots; it performs no extraction. `extract_incident_fields`
+passes a deep copy to an extractor, checks the return type, and applies the
+source gate against a separate pristine copy. Inputs, scripts, properties, and
+trusted results are deep-copied at their boundaries, and stable JSON output
+uses sorted object keys, fixed separators, and unescaped Unicode.
+
+This increment deliberately stops before `ContextState`, tools, the Agent Loop,
+checkpoints, a real model, or Zoekt. Passing the fake fixtures proves only the
+input/output/provenance harness and deterministic serialization; it is not an
+incident-extraction quality result and does not support causal claims.
