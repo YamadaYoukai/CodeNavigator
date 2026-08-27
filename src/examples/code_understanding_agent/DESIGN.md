@@ -533,7 +533,73 @@ source gate against a separate pristine copy. Inputs, scripts, properties, and
 trusted results are deep-copied at their boundaries, and stable JSON output
 uses sorted object keys, fixed separators, and unescaped Unicode.
 
-This increment deliberately stops before `ContextState`, tools, the Agent Loop,
-checkpoints, a real model, or Zoekt. Passing the fake fixtures proves only the
-input/output/provenance harness and deterministic serialization; it is not an
-incident-extraction quality result and does not support causal claims.
+The extraction boundary itself stops before `ContextState`, tools, the Agent
+Loop, checkpoints, a real model, or Zoekt. Passing the fake fixtures proves
+only the input/output/provenance harness and deterministic serialization; it
+is not an incident-extraction quality result and does not support causal
+claims.
+
+## Incident retrieval context mapping
+
+`map_incident_to_retrieval_context` is a pure offline adapter between the
+structured extraction boundary and the existing `ContextBuilder`. Its entry
+point accepts both the original `IncidentInput` and an
+`IncidentExtractionResult`. The result class is not treated as proof of trust:
+the adapter deep-copies it, converts the copy back to an untrusted
+`IncidentExtractionCandidate`, and reuses `validate_incident_extraction` before
+constructing any retrieval task or context. Directly constructed or corrupted
+results therefore fail on fabricated text, unknown IDs, case or Unicode drift,
+and JSON scalar/container type drift at the same exact source-association gate.
+The adapter neither copies nor weakens that validation rule.
+
+### Ordered retrieval candidates
+
+Every present observation becomes one `IncidentRetrievalTask` in this fixed
+order:
+
+1. `method`
+2. `exception_class`
+3. each `configuration_key`, preserving extraction order
+4. `error_text`
+5. `service_name`
+
+Missing observations produce no placeholder. Equal values in different fields
+are not merged, and the list is not truncated to `remaining_tool_calls`. Each
+task retains its field name, original untrimmed query, and ordered source IDs,
+plus a shared `SearchCodeArguments` object. The argument query is identical to
+the observation, `literal=true`, and `lang` and `path` are `null`; the normal
+router default owns the search limit. The task model rejects a mismatched
+argument query, non-literal search, or guessed language/path.
+
+`selected_repository` is a required explicit choice, including when the
+choice is `null`. A non-null value must exactly match a
+`RepositoryHint.canonical_name`. The mapper does not resolve aliases or infer a
+repository from service names, package names, URLs, basenames, capitalization,
+or approximate matches. Repository aliases remain available in context for
+the existing execution-boundary resolver, but they are not accepted as a
+mapper selection.
+
+### Source facts and stable current task
+
+The caller explicitly supplies `system_instruction`, `repository_hints`,
+`selected_repository`, `evidence_item_budget`, and `remaining_tool_calls`; the
+adapter has no production defaults for these policies. Each original incident
+source becomes one `EvidenceKind.FACT` in input order. Its stable source label
+is `incident:<source_type>:<source_id>`, and its content is the original
+caller-redacted text without trimming or rewriting.
+
+`ContextState.current_task` is canonical UTF-8-safe JSON containing a task type
+and every ordered task payload. It retains the field name, query, source IDs,
+and complete typed search arguments, so no natural-language parsing is needed
+to reproduce the candidate list. Inputs, extraction results, repository hints,
+tasks, state, and detached serialization payloads do not share caller-owned
+mutable objects.
+
+The state always contains all source facts. Evidence selection remains solely
+the existing `ContextBuilder` policy: if `evidence_item_budget` is smaller than
+the source count, the resulting `ModelInput` may contain fewer facts and the
+adapter makes no claim that all sources survived construction. Mapping and
+`ContextBuilder.build` do not invoke `ModelClient`, `ToolRouter`, Zoekt, MCP, or
+the Agent Loop. These candidates are an inspectable plan only; they are not
+executed searches, quality evidence, a root-cause ranking, or an Incident
+Copilot result.

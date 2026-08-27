@@ -54,6 +54,11 @@ from .incident_extraction import (
     extract_incident_fields,
     validate_incident_extraction,
 )
+from .incident_context import (
+    IncidentContextValidationError,
+    IncidentRetrievalTask,
+    map_incident_to_retrieval_context,
+)
 from .model_boundary import (
     FakeModel,
     FinalAnswerCitation,
@@ -129,8 +134,10 @@ __all__ = [
     "IncidentExtractionCandidate",
     "IncidentExtractionResult",
     "IncidentExtractionValidationError",
+    "IncidentContextValidationError",
     "IncidentFieldExtractor",
     "IncidentInput",
+    "IncidentRetrievalTask",
     "IncidentSource",
     "IncidentSourceType",
     "MAX_TOOL_CALLS_PER_TASK",
@@ -178,6 +185,7 @@ __all__ = [
     "checkpoint_from_json",
     "collect_allowed_final_answer_evidence",
     "extract_incident_fields",
+    "map_incident_to_retrieval_context",
     "validate_incident_extraction",
     "validate_final_answer_evidence",
 ]
