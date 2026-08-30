@@ -158,6 +158,40 @@ Trace。冒烟脚本会在写报告前验证已配置的 Key/Base URL 不在序�
 索引后，按[真实 Tool 证据](docs/evidence/2026-08-07-real-model-result-search-tool.md)中的命令
 运行；该入口不读取模型凭据，也不重新生成原始模型 Trace。
 
+### Replay one grounded Incident search task
+
+[`incident-click-search-public.json`](evaluation/fixtures/incident-click-search-public.json)
+冻结一条公开、来源可核验的错误文本及 Click 8.4.1 精确 gold；对应 SHA-256
+由同目录 sidecar 和 Runner 常量双重校验。先做不调用模型、Tool 或网络的契约校验：
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=. .venv/bin/python \
+  -m evaluation.replay_incident_search \
+  --fixture evaluation/fixtures/incident-click-search-public.json \
+  --validate-only
+```
+
+真实入口还要求显式配置 `ZOEKT_URL`、`REPOSITORY_ROOT` 和
+`ZOEKT_INDEX_REVISION`，并先核对 checkout、`zoekt.name`、声明 revision 与本地
+gold。通过后只把 mapper 产生的唯一 `error_text` 任务经现有 Tool 执行边界发送给
+`src.server.search_code` 一次；不调用模型、Agent Loop 或 `get_file_context`，也不重试。
+该证据只覆盖直接 Tool backend 路径，不代表 MCP Client 闭环或 Incident 根因判断。
+
+2026-08-29 的首次真实尝试保存在
+[`incident-search-replay-real-2026-08-29.json`](evaluation/reports/incident-search-replay-real-2026-08-29.json)
+及其[独立说明](evaluation/reports/incident-search-replay-real-2026-08-29.md)。同一冻结
+fixture 在零 Tool 预检全部通过后只执行一次，结果稳定分类为
+`tool_execution_error`；预算仍为 `1 → 0`，其他 Tool、模型和 Agent Loop 调用均为
+`0`，且没有重试。该失败不计为真实检索闭环通过。
+
+2026-08-30 在先确认本地 listener 与固定索引服务已恢复后，新的明确授权允许同一
+fixture 再执行一次。零 Tool 预检保持全绿，唯一一次真实 `search_code` 将冻结 gold
+命中 Top-1；预算、Trace、来源和 next State/Input 门禁均通过，仍未调用
+`get_file_context`、模型或 Agent Loop。白名单 artifact 与边界说明见
+[`incident-search-replay-real-2026-08-30.json`](evaluation/reports/incident-search-replay-real-2026-08-30.json)
+和[成功复核记录](evaluation/reports/incident-search-replay-real-2026-08-30.md)。08-29 的
+失败记录未被覆盖，也未通过改 query、fixture、gold 或 best-of 制造成功。
+
 ### 冻结的 Agent Eval
 
 独立 Agent 评测集位于

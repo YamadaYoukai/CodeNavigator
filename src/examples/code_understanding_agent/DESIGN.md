@@ -603,3 +603,43 @@ adapter makes no claim that all sources survived construction. Mapping and
 the Agent Loop. These candidates are an inspectable plan only; they are not
 executed searches, quality evidence, a root-cause ranking, or an Incident
 Copilot result.
+
+## Frozen Incident search replay boundary
+
+`evaluation/replay_incident_search.py` is a narrow evaluation runner over the
+mapper and the existing single Tool-step transition. It accepts only the
+public `incident-click-unexpected-extra-argument-001` fixture. Before building
+a decision, it verifies the fixture bytes against both the checked-in SHA-256
+sidecar and the compiled frozen digest, parses a strict schema, repeats
+`validate_incident_extraction`, and calls
+`map_incident_to_retrieval_context`. It then requires exactly one
+`error_text` task whose query, source ID, canonical `repo=click`, null
+language/path, literal mode, default limit, and stable call ID match the frozen
+contract. Source, repository, revision, gold, argument, or checksum drift
+fails before a Tool can run.
+
+The runner constructs a `ToolCallDecision` directly from that typed task; the
+decision is not attributed to a model. It injects `search_code` and a
+fail-if-called `get_file_context` handler into the existing
+`PydanticToolAdapter -> ToolRouter -> ToolStepExecutor` path. Input budget is
+one. Success, a classified Tool error, timeout, non-JSON return, malformed
+search response, or missing gold all stop after the first attempt. There is no
+retry, alternate query, result-driven fixture update, second Tool, model, or
+Agent Loop.
+
+Local preflight is separate and cannot invoke Zoekt. It requires explicit
+Zoekt URL, repository root, and operator-declared index revision configuration;
+then verifies Click checkout revision, exact `git config zoekt.name`, and the
+frozen gold line at the pinned revision. The only network operation in a real
+run is the one `src.server.search_code` execution after those checks pass.
+This proves the direct Tool backend path, not MCP Client transport.
+
+The allowlisted artifact records fixture/revision identity, repository,
+content hashes, stable call counts, budget transition, Trace event types,
+stable Tool status, gold rank and relative location, and Boolean state checks.
+It excludes raw Incident/query text, source snippets, local paths, endpoint
+values, credentials, and backend exception detail. A success requires the
+frozen `repo/path/line/snippet` candidate and preservation of both the new Tool
+fact and original Incident source fact in the next state and immediately next
+`ModelInput`. A candidate match is retrieval evidence only; it is not a root
+cause, confidence score, or troubleshooting recommendation.

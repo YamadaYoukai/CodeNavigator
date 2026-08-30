@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "status": "blocked",
+  "conclusion_branch": "C",
+  "baseline": {
+    "head": "30fab73f1ec0ad631deb4147a5e3c0d1ab982231",
+    "incident_extraction_context_tests": 52,
+    "baseline_worktree_clean": true
+  },
+  "fixture": {
+    "case_id": "incident-click-unexpected-extra-argument-001",
+    "fixture_sha256": "2634a72fca1c8702e0250b8948241ae0d0a6dceaf18e8f6b56039a5734944fe0",
+    "click_revision": "6eeb50e948ea136db145280f6f5dd52eca3fa7e5",
+    "repository": "click",
+    "source_count": 1,
+    "retrieval_task_count": 1,
+    "retrieval_field": "error_text",
+    "query_sha256": "7866062172bda6b74e1315bb8c9bd77319533c363f314b3407790803be743e60",
+    "gold": {
+      "repo": "click",
+      "path": "src/click/core.py",
+      "line": 1284,
+      "snippet_sha256": "6f4394e966077bc34c53dc38e6b98823f478a8e6cb31195359cb43f70e0ef2c2"
+    }
+  },
+  "offline_runner": {
+    "red_test": "module_missing",
+    "focused_tests": 37,
+    "fixture_validate_only_status": "valid",
+    "fake_search_code_calls": 1,
+    "fake_get_file_context_calls": 0,
+    "model_calls": 0,
+    "agent_loop_calls": 0,
+    "budget_before": 1,
+    "budget_after": 0,
+    "trace_event_types": [
+      "tool_call",
+      "tool_result"
+    ],
+    "gold_rank_in_fake_result": 2,
+    "incident_source_fact_preserved": true,
+    "new_tool_fact_in_next_state": true,
+    "new_tool_fact_in_next_model_input": true,
+    "failure_retry_count": 0
+  },
+  "real_preflight": {
+    "status": "blocked",
+    "error_type": "zoekt_url_missing",
+    "network_probe_calls": 0,
+    "search_code_calls": 0,
+    "get_file_context_calls": 0,
+    "model_calls": 0,
+    "agent_loop_calls": 0,
+    "trace_event_count": 0
+  },
+  "verification": {
+    "full_pytest": 321,
+    "retrieval_cases": 18,
+    "agent_cases": 10,
+    "holdout_cases": 10,
+    "holdout_answerable_cases": 8,
+    "holdout_insufficient_evidence_cases": 2,
+    "package_import": "passed",
+    "fixture_checksum": "passed",
+    "diff_check": "passed",
+    "content_scan": "passed"
+  },
+  "milestones": {
+    "m4_percent": 10,
+    "total_percent": 56.5,
+    "technical_commit_created": false
+  },
+  "next_step": "Restore explicit Zoekt configuration, rerun the same zero-Tool preflight, then execute this unchanged fixture at most once only if every preflight check passes."
+}

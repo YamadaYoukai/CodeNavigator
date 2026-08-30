@@ -1,0 +1,53 @@
+{
+  "preflight": {
+    "checks": {
+      "checkout_revision": true,
+      "declared_index_revision": true,
+      "gold_source_line": true,
+      "zoekt_name": true,
+      "zoekt_url_configured": true
+    },
+    "click_revision": "6eeb50e948ea136db145280f6f5dd52eca3fa7e5",
+    "fixture_sha256": "2634a72fca1c8702e0250b8948241ae0d0a6dceaf18e8f6b56039a5734944fe0",
+    "repository": "click",
+    "status": "passed"
+  },
+  "replay": {
+    "budget": {
+      "after": 0,
+      "before": 1
+    },
+    "calls": {
+      "agent_loop": 0,
+      "get_file_context": 0,
+      "model": 0,
+      "search_code": 1
+    },
+    "case_id": "incident-click-unexpected-extra-argument-001",
+    "click_revision": "6eeb50e948ea136db145280f6f5dd52eca3fa7e5",
+    "error_type": null,
+    "fixture_sha256": "2634a72fca1c8702e0250b8948241ae0d0a6dceaf18e8f6b56039a5734944fe0",
+    "gold_match": {
+      "line": 1284,
+      "path": "src/click/core.py",
+      "rank": 1,
+      "repo": "click",
+      "snippet_sha256": "6f4394e966077bc34c53dc38e6b98823f478a8e6cb31195359cb43f70e0ef2c2"
+    },
+    "query_sha256": "7866062172bda6b74e1315bb8c9bd77319533c363f314b3407790803be743e60",
+    "repository": "click",
+    "state_checks": {
+      "incident_source_fact_preserved": true,
+      "new_tool_fact_in_next_model_input": true,
+      "new_tool_fact_in_next_state": true
+    },
+    "status": "success",
+    "tool_result_error_type": null,
+    "tool_result_sha256": "af3be0e24a5c84950215d62178da6a0f6220e2bbaebc5f85f0339fbe69bb858e",
+    "tool_result_status": "success",
+    "trace_event_types": [
+      "tool_call",
+      "tool_result"
+    ]
+  }
+}

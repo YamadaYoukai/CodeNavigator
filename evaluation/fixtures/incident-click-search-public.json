@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "case_id": "incident-click-unexpected-extra-argument-001",
+  "click_revision": "6eeb50e948ea136db145280f6f5dd52eca3fa7e5",
+  "incident_input": {
+    "sources": [
+      {
+        "source_id": "log-001",
+        "source_type": "log",
+        "text": "Error: Got unexpected extra argument"
+      }
+    ]
+  },
+  "extraction_candidate": {
+    "exception_class": null,
+    "method": null,
+    "error_text": {
+      "value": "Got unexpected extra argument",
+      "source_ids": [
+        "log-001"
+      ]
+    },
+    "service_name": null,
+    "configuration_keys": []
+  },
+  "repository_hint": {
+    "canonical_name": "click",
+    "aliases": []
+  },
+  "selected_repository": "click",
+  "task_rule": {
+    "task_count": 1,
+    "field_name": "error_text",
+    "source_ids": [
+      "log-001"
+    ],
+    "call_id": "incident-click-unexpected-extra-argument-001-search-code-1"
+  },
+  "search_arguments": {
+    "query": "Got unexpected extra argument",
+    "repo": "click",
+    "lang": null,
+    "path": null,
+    "limit": 20,
+    "literal": true
+  },
+  "context_policy": {
+    "system_instruction": "Preserve the frozen public incident and tool facts; do not infer a cause.",
+    "evidence_item_budget": 2,
+    "remaining_tool_calls": 1
+  },
+  "gold": {
+    "repo": "click",
+    "path": "src/click/core.py",
+    "line": 1284,
+    "snippet": "\"Got unexpected extra argument ({args})\",",
+    "snippet_sha256": "6f4394e966077bc34c53dc38e6b98823f478a8e6cb31195359cb43f70e0ef2c2"
+  }
+}
