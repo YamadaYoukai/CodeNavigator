@@ -192,6 +192,37 @@ fixture 再执行一次。零 Tool 预检保持全绿，唯一一次真实 `sear
 和[成功复核记录](evaluation/reports/incident-search-replay-real-2026-08-30.md)。08-29 的
 失败记录未被覆盖，也未通过改 query、fixture、gold 或 best-of 制造成功。
 
+### Replay the frozen search result into file context
+
+[`replay_incident_context.py`](evaluation/replay_incident_context.py) 严格读取原 fixture
+与 08-30 成功搜索 artifact，不重新执行 `search_code`。先运行纯离线契约校验：
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=. .venv/bin/python \
+  -m evaluation.replay_incident_context --validate-only
+```
+
+真实运行前还必须显式设置 `REPOSITORY_ROOT`，并用 `--preflight-only` 做零 Tool
+检查。它核对 Click revision、`zoekt.name`、目标文件与行、固定 `20/20` 窗口和上下文
+哈希，不调用搜索、模型、Agent Loop 或网络。全部通过后，真实入口只允许一次
+`get_file_context`，结果无论成功或失败都停止且不重试：
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=. .venv/bin/python \
+  -m evaluation.replay_incident_context \
+  --out evaluation/reports/incident-context-replay-real-YYYY-MM-DD.json
+```
+
+该 suffix 只证明已验证的 Top-1 搜索证据能确定性驱动一次真实文件上下文读取；它不代表
+同一 Trace 内的两 Tool 编排、MCP Client 传输、模型选择、根因质量或完整 Incident
+Copilot。
+
+2026-09-02 的首次真实 context suffix 已成功：`get_file_context=1`，
+`search_code/model/Agent Loop=0`，预算 `1 → 0`，Trace 为
+`tool_call → tool_result`。固定目标行与 `1264..1304` 上下文通过。白名单结果见
+[`incident-context-replay-real-2026-09-02.json`](evaluation/reports/incident-context-replay-real-2026-09-02.json)
+和[独立说明](evaluation/reports/incident-context-replay-real-2026-09-02.md)。
+
 ### 冻结的 Agent Eval
 
 独立 Agent 评测集位于

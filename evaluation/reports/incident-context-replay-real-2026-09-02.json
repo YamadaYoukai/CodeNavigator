@@ -1,0 +1,67 @@
+{
+  "preflight": {
+    "checks": {
+      "checkout_revision": true,
+      "context_bounds": true,
+      "context_content": true,
+      "repository_root": true,
+      "target_file": true,
+      "target_line": true,
+      "zoekt_name": true
+    },
+    "click_revision": "6eeb50e948ea136db145280f6f5dd52eca3fa7e5",
+    "context_arguments_sha256": "6a3666e7f4b509cdeb3d06b0bdd77bf9fe59ba412b58b55a77c45c86ffaa9f2c",
+    "fixture_sha256": "2634a72fca1c8702e0250b8948241ae0d0a6dceaf18e8f6b56039a5734944fe0",
+    "repository": "click",
+    "search_artifact_sha256": "41607f1a163440d3b517bb05e637f15dc8c1924b11c26323b9f91f57a5500acf",
+    "status": "passed"
+  },
+  "replay": {
+    "budget": {
+      "after": 0,
+      "before": 1
+    },
+    "calls": {
+      "agent_loop": 0,
+      "get_file_context": 1,
+      "model": 0,
+      "search_code": 0
+    },
+    "case_id": "incident-click-unexpected-extra-argument-001",
+    "click_revision": "6eeb50e948ea136db145280f6f5dd52eca3fa7e5",
+    "context_arguments_sha256": "6a3666e7f4b509cdeb3d06b0bdd77bf9fe59ba412b58b55a77c45c86ffaa9f2c",
+    "context_match": {
+      "content_sha256": "33955d1d88da4656c038ed3e3b4e5a24201b57477d95bf9ab15cbc466bf728d4",
+      "end_line": 1304,
+      "file_path": "src/click/core.py",
+      "repository": "click",
+      "start_line": 1264,
+      "target_line": 1284,
+      "total_lines": 3542,
+      "truncated": true
+    },
+    "error_type": null,
+    "repository": "click",
+    "source_chain": {
+      "fixture_sha256": "2634a72fca1c8702e0250b8948241ae0d0a6dceaf18e8f6b56039a5734944fe0",
+      "search_artifact_sha256": "41607f1a163440d3b517bb05e637f15dc8c1924b11c26323b9f91f57a5500acf",
+      "search_tool_result_sha256": "af3be0e24a5c84950215d62178da6a0f6220e2bbaebc5f85f0339fbe69bb858e"
+    },
+    "state_checks": {
+      "incident_source_fact_in_next_model_input": true,
+      "incident_source_fact_in_next_state": true,
+      "new_context_fact_in_next_model_input": true,
+      "new_context_fact_in_next_state": true,
+      "validated_search_fact_in_next_model_input": true,
+      "validated_search_fact_in_next_state": true
+    },
+    "status": "success",
+    "tool_result_error_type": null,
+    "tool_result_sha256": "d6a654cc31e1efd119f206da9d949332aa8cc206f6d8449645d506dfdc337818",
+    "tool_result_status": "success",
+    "trace_event_types": [
+      "tool_call",
+      "tool_result"
+    ]
+  }
+}

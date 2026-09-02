@@ -643,3 +643,41 @@ frozen `repo/path/line/snippet` candidate and preservation of both the new Tool
 fact and original Incident source fact in the next state and immediately next
 `ModelInput`. A candidate match is retrieval evidence only; it is not a root
 cause, confidence score, or troubleshooting recommendation.
+
+## Frozen Incident context-suffix replay boundary
+
+`evaluation/replay_incident_context.py` is a separate follow-up runner that
+starts from the immutable successful search artifact rather than performing a
+new search. It verifies the original Incident fixture and the complete
+2026-08-30 search artifact by byte SHA-256, parses both with strict schemas,
+and rechecks the successful preflight, one search call, exhausted search
+budget, two-event Trace, state provenance, Tool-result digest, and exact
+Top-1 `repo/path/line/snippet` identity. Missing, extra, reordered, or
+type-drifted persisted fields fail before a Tool call; in particular, JSON
+booleans and floats cannot substitute for the integer rank or line.
+
+Only after those gates pass does the runner copy the Top-1 repository, path,
+and line into a `GetFileContextArguments` object. The context window is frozen
+at 20 lines before and after the target, and the runner creates a stable
+caller-owned `ToolCallDecision`; it does not attribute that choice to a model.
+The state contains both the original Incident source and a compact fact linked
+to the upstream artifact and search-result hashes. Its new one-call budget is
+independent of the already exhausted search budget.
+
+The decision uses the existing
+`PydanticToolAdapter -> ToolRouter -> ToolStepExecutor` transition. A
+fail-if-called search adapter makes another search impossible, while the
+context adapter counts exactly one attempted `get_file_context`. Success,
+Tool error, timeout, invalid JSON, or source mismatch all stop without retry.
+The two-event suffix Trace, `1 -> 0` budget, fresh context fact, validated
+search fact, and original Incident fact are checked in both next state and the
+immediately following `ModelInput`.
+
+Zero-Tool preflight independently verifies the pinned Click checkout,
+canonical `zoekt.name`, target file and line, the fixed `1264..1304` bounds,
+and the expected context-content hash. A public artifact contains only stable
+counts, relative source coordinates, hashes, statuses, and Boolean checks;
+raw context, local roots, credentials, and backend exception details are
+excluded. This proves a deterministic suffix across two dated artifacts. It
+does not prove a same-Trace two-Tool plan, MCP transport, model selection,
+root-cause quality, retry behavior, or a complete Incident workflow.
