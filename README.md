@@ -221,7 +221,10 @@ Copilot。
 `search_code/model/Agent Loop=0`，预算 `1 → 0`，Trace 为
 `tool_call → tool_result`。固定目标行与 `1264..1304` 上下文通过。白名单结果见
 [`incident-context-replay-real-2026-09-02.json`](evaluation/reports/incident-context-replay-real-2026-09-02.json)
-和[独立说明](evaluation/reports/incident-context-replay-real-2026-09-02.md)。
+和[独立说明](evaluation/reports/incident-context-replay-real-2026-09-02.md)。该 artifact 的
+离线完整性门禁后续收紧记录见
+[09-05 follow-up](evaluation/reports/incident-context-replay-integrity-2026-09-05.md)；修复没有
+重跑真实 Tool，也没有修改原 JSON。
 
 ### 冻结的 Agent Eval
 

@@ -39,6 +39,14 @@ def _search_artifact_payload() -> dict[str, object]:
     return json.loads(DEFAULT_SEARCH_ARTIFACT_PATH.read_text(encoding="utf-8"))
 
 
+def _real_context_artifact_payload() -> dict[str, object]:
+    return json.loads(REAL_CONTEXT_ARTIFACT_PATH.read_text(encoding="utf-8"))
+
+
+def _encode_context_artifact(payload: dict[str, object]) -> bytes:
+    return json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
+
+
 def _write_search_artifact(
     tmp_path: Path,
     payload: dict[str, object],
@@ -524,6 +532,12 @@ def test_saved_execution_artifact_is_strictly_revalidated(
     tmp_path: Path,
 ) -> None:
     content = _allow_synthetic_context(monkeypatch)
+    context_result = _context_result(content=content)
+    monkeypatch.setattr(
+        replay,
+        "EXPECTED_CONTEXT_TOOL_RESULT_SHA256",
+        replay._canonical_json_sha256(context_result),
+    )
     context = load_context_replay()
     repository_root, _ = _write_public_checkout(tmp_path)
 
@@ -539,7 +553,7 @@ def test_saved_execution_artifact_is_strictly_revalidated(
     execution = asyncio.run(
         execute_replay(
             context,
-            get_file_context=lambda **_: _context_result(content=content),
+            get_file_context=lambda **_: context_result,
         )
     )
     artifact = replay.IncidentContextExecutionArtifact(
@@ -580,10 +594,123 @@ def test_checked_in_real_context_artifact_recomputes_offline() -> None:
         "after": 0,
     }
     assert artifact.replay.trace_event_types == ("tool_call", "tool_result")
+    assert artifact.replay.tool_result_sha256 == (
+        replay.EXPECTED_CONTEXT_TOOL_RESULT_SHA256
+    )
     assert artifact.replay.context_match is not None
     assert artifact.replay.context_match.content_sha256 == (
         replay.EXPECTED_CONTEXT_CONTENT_SHA256
     )
+
+
+@pytest.mark.parametrize(
+    "digest",
+    [
+        "not-a-digest",
+        "0" * 64,
+        "D6A654CC31E1EFD119F206DA9D949332AA8CC206F6D8449645D506DFDC337818",
+    ],
+    ids=["malformed", "wrong-well-formed", "uppercase"],
+)
+def test_saved_success_rejects_invalid_tool_result_digest(digest: str) -> None:
+    payload = _real_context_artifact_payload()
+    payload["replay"]["tool_result_sha256"] = digest  # type: ignore[index]
+
+    with pytest.raises(
+        ContextReplayValidationError,
+        match="invalid_context_execution_artifact",
+    ):
+        validate_execution_artifact(
+            _encode_context_artifact(payload),
+            load_context_replay(),
+        )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "fabricated_tool_error",
+        "mismatched_tool_error",
+        "semantic_error_with_tool_failure",
+        "tool_error_with_successful_result",
+        "fabricated_semantic_error",
+    ],
+)
+def test_saved_failure_rejects_impossible_error_contracts(
+    mutation: str,
+) -> None:
+    payload = _real_context_artifact_payload()
+    report = payload["replay"]  # type: ignore[assignment]
+    report["status"] = "error"
+    report["context_match"] = None
+
+    if mutation == "fabricated_tool_error":
+        report["error_type"] = "fabricated_error"
+        report["tool_result_status"] = "error"
+        report["tool_result_error_type"] = "fabricated_error"
+        report["tool_result_sha256"] = None
+    elif mutation == "mismatched_tool_error":
+        report["error_type"] = "tool_timeout"
+        report["tool_result_status"] = "error"
+        report["tool_result_error_type"] = "tool_execution_error"
+        report["tool_result_sha256"] = None
+    elif mutation == "semantic_error_with_tool_failure":
+        report["error_type"] = "context_mismatch"
+        report["tool_result_status"] = "error"
+        report["tool_result_error_type"] = "context_mismatch"
+        report["tool_result_sha256"] = None
+    elif mutation == "tool_error_with_successful_result":
+        report["error_type"] = "tool_timeout"
+        report["tool_result_status"] = "success"
+        report["tool_result_error_type"] = None
+    else:
+        report["error_type"] = "fabricated_error"
+        report["tool_result_status"] = "success"
+        report["tool_result_error_type"] = None
+
+    with pytest.raises(
+        ContextReplayValidationError,
+        match="invalid_context_execution_artifact",
+    ):
+        validate_execution_artifact(
+            _encode_context_artifact(payload),
+            load_context_replay(),
+        )
+
+
+@pytest.mark.parametrize(
+    ("tool_result_status", "error_type"),
+    [
+        ("error", "tool_execution_error"),
+        ("error", "tool_timeout"),
+        ("success", "unexpected_result"),
+        ("success", "context_mismatch"),
+    ],
+)
+def test_saved_failure_accepts_only_reachable_error_contracts(
+    tool_result_status: str,
+    error_type: str,
+) -> None:
+    payload = _real_context_artifact_payload()
+    report = payload["replay"]  # type: ignore[assignment]
+    report["status"] = "error"
+    report["error_type"] = error_type
+    report["tool_result_status"] = tool_result_status
+    report["tool_result_error_type"] = (
+        error_type if tool_result_status == "error" else None
+    )
+    report["tool_result_sha256"] = (
+        None if tool_result_status == "error" else "a" * 64
+    )
+    report["context_match"] = None
+
+    artifact = validate_execution_artifact(
+        _encode_context_artifact(payload),
+        load_context_replay(),
+    )
+
+    assert artifact.replay.status == "error"
+    assert artifact.replay.error_type == error_type
 
 
 def test_cli_missing_repository_root_stops_before_real_execution(

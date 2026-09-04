@@ -85,6 +85,15 @@ EXPECTED_TOTAL_LINES = 3542
 EXPECTED_CONTEXT_CONTENT_SHA256 = (
     "33955d1d88da4656c038ed3e3b4e5a24201b57477d95bf9ab15cbc466bf728d4"
 )
+EXPECTED_CONTEXT_TOOL_RESULT_SHA256 = (
+    "d6a654cc31e1efd119f206da9d949332aa8cc206f6d8449645d506dfdc337818"
+)
+EXPECTED_CONTEXT_TOOL_ERROR_TYPES = frozenset(
+    {"tool_execution_error", "tool_timeout"}
+)
+EXPECTED_CONTEXT_INSPECTION_ERROR_TYPES = frozenset(
+    {"unexpected_result", "context_mismatch"}
+)
 EXPECTED_EVIDENCE_ITEM_BUDGET = 3
 EXPECTED_CURRENT_TASK = (
     "Read the frozen Top-1 Click source location exactly once; do not infer a cause."
@@ -148,7 +157,7 @@ class IncidentContextReplayReport(_StrictModel):
     trace_event_types: tuple[str, ...]
     tool_result_status: Literal["success", "error"]
     tool_result_error_type: str | None
-    tool_result_sha256: str | None
+    tool_result_sha256: str | None = Field(pattern=r"^[0-9a-f]{64}$")
     context_match: ContextMatchReport | None
     state_checks: ContextStateChecks
 
@@ -869,7 +878,8 @@ def validate_execution_artifact(
             report.error_type is None
             and report.tool_result_status == "success"
             and report.tool_result_error_type is None
-            and report.tool_result_sha256 is not None
+            and report.tool_result_sha256
+            == EXPECTED_CONTEXT_TOOL_RESULT_SHA256
             and report.context_match
             == ContextMatchReport(
                 repository=EXPECTED_REPOSITORY,
@@ -882,22 +892,19 @@ def validate_execution_artifact(
                 content_sha256=EXPECTED_CONTEXT_CONTENT_SHA256,
             )
         )
+    elif report.tool_result_status == "error":
+        valid_outcome = (
+            report.error_type in EXPECTED_CONTEXT_TOOL_ERROR_TYPES
+            and report.tool_result_error_type == report.error_type
+            and report.tool_result_sha256 is None
+            and report.context_match is None
+        )
     else:
         valid_outcome = (
-            report.error_type is not None
+            report.error_type in EXPECTED_CONTEXT_INSPECTION_ERROR_TYPES
+            and report.tool_result_error_type is None
+            and report.tool_result_sha256 is not None
             and report.context_match is None
-            and (
-                (
-                    report.tool_result_status == "error"
-                    and report.tool_result_error_type == report.error_type
-                    and report.tool_result_sha256 is None
-                )
-                or (
-                    report.tool_result_status == "success"
-                    and report.tool_result_error_type is None
-                    and report.tool_result_sha256 is not None
-                )
-            )
         )
     if not (valid_preflight and valid_replay and valid_outcome):
         raise ContextReplayValidationError(
