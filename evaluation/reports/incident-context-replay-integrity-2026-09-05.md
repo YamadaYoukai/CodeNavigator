@@ -2,9 +2,12 @@
 
 ## Result
 
-**PASSED.** This follow-up closes the execution-artifact validator gap found
-after commit `95a626d`. It validates the unchanged 2026-09-02 context replay
-artifact and does not replace, rewrite, or rerun that real execution.
+**PASSED after a second follow-up.** Commit `82768d1` closed the initially
+identified execution-artifact validator gaps after commit `95a626d`, but an
+independent re-review found one remaining overlap between the success and
+semantic-failure contracts. The subsequent fix makes those states disjoint.
+Both follow-ups validate the unchanged 2026-09-02 context replay artifact and
+do not replace, rewrite, or rerun that real execution.
 
 No Tool, model, Agent Loop, MCP transport, or network service was called. The
 only checkout-dependent operation was a read-only, zero-Tool preflight against
@@ -26,6 +29,13 @@ before changing the validator, the context replay test module reported
 which semantic errors were attributed to a failed ToolResult or stable Tool
 errors were attributed to a successful ToolResult.
 
+After `82768d1`, the public validator still accepted both `unexpected_result`
+and `context_mismatch` when the successful ToolResult retained the fixed,
+independently verified success digest
+`d6a654cc31e1efd119f206da9d949332aa8cc206f6d8449645d506dfdc337818`
+but the report was changed to `status="error"` with no context match. The
+targeted second-round red step reported `2 failed, 48 passed`.
+
 ## Narrow fix
 
 The follow-up changes only the saved-artifact contract:
@@ -39,7 +49,12 @@ The follow-up changes only the saved-artifact contract:
   match;
 - a successful ToolResult that fails result inspection may use only
   `unexpected_result` or `context_mismatch`, with a well-formed result digest
-  and no context match.
+  that differs from the fixed success digest, and no context match.
+
+The last condition is the second-round correction: a result already proven to
+be the fixed successful result cannot simultaneously claim a semantic failure.
+An independently valid but different digest remains reachable for inspection
+failure coverage.
 
 The Tool execution path, fixed arguments, `0/1/0/0` call counts, `1 -> 0`
 budget, Trace, context window, source chain, fixture, upstream search artifact,
@@ -55,20 +70,26 @@ context and canonical Tool result without importing or calling the Tool:
 | context content | `33955d1d88da4656c038ed3e3b4e5a24201b57477d95bf9ab15cbc466bf728d4` |
 | complete Tool result | `d6a654cc31e1efd119f206da9d949332aa8cc206f6d8449645d506dfdc337818` |
 
-A separate post-fix in-memory probe passed malformed digest, wrong well-formed
-digest, fabricated semantic error, and fabricated Tool error artifacts directly
-to `validate_execution_artifact()`. All four were rejected as
-`invalid_context_execution_artifact`.
+A separate first-round in-memory probe passed malformed digest, wrong
+well-formed digest, fabricated semantic error, and fabricated Tool error
+artifacts directly to `validate_execution_artifact()`. All four were rejected
+as `invalid_context_execution_artifact`. That probe did not cover the fixed
+success digest relabeled as a stable semantic error.
+
+The second-round probe passes that exact fixed digest with each of
+`unexpected_result` and `context_mismatch` through the same public validator.
+Both are now rejected as `invalid_context_execution_artifact`; the existing
+different-digest semantic-failure cases remain accepted.
 
 ## Verification
 
-- context replay module: `48 passed`;
-- Incident context/search/context-suffix focus: `85 passed`;
-- complete suite: `369 passed`;
+- context replay module: `50 passed`;
+- Incident context/search/context-suffix focus: `87 passed`;
+- complete suite: `371 passed`;
 - retrieval, Agent, and holdout datasets: valid at `18/10/10` cases;
 - context replay `--validate-only`: valid with all Tool/model/loop calls `0`;
 - zero-Tool local preflight: all seven checks passed;
-- package import, `git diff --check 95a626d`, and frozen artifact hashes: passed.
+- package import, `git diff --check 82768d1`, and frozen artifact hashes: passed.
 
 The unchanged hashes remain:
 

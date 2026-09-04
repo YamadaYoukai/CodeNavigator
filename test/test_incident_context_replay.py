@@ -679,6 +679,33 @@ def test_saved_failure_rejects_impossible_error_contracts(
 
 
 @pytest.mark.parametrize(
+    "error_type",
+    ["unexpected_result", "context_mismatch"],
+)
+def test_saved_semantic_failure_rejects_known_success_digest(
+    error_type: str,
+) -> None:
+    payload = _real_context_artifact_payload()
+    report = payload["replay"]  # type: ignore[assignment]
+    assert (
+        report["tool_result_sha256"]
+        == replay.EXPECTED_CONTEXT_TOOL_RESULT_SHA256
+    )
+    report["status"] = "error"
+    report["error_type"] = error_type
+    report["context_match"] = None
+
+    with pytest.raises(
+        ContextReplayValidationError,
+        match="invalid_context_execution_artifact",
+    ):
+        validate_execution_artifact(
+            _encode_context_artifact(payload),
+            load_context_replay(),
+        )
+
+
+@pytest.mark.parametrize(
     ("tool_result_status", "error_type"),
     [
         ("error", "tool_execution_error"),

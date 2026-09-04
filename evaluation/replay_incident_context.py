@@ -904,6 +904,8 @@ def validate_execution_artifact(
             report.error_type in EXPECTED_CONTEXT_INSPECTION_ERROR_TYPES
             and report.tool_result_error_type is None
             and report.tool_result_sha256 is not None
+            and report.tool_result_sha256
+            != EXPECTED_CONTEXT_TOOL_RESULT_SHA256
             and report.context_match is None
         )
     if not (valid_preflight and valid_replay and valid_outcome):
