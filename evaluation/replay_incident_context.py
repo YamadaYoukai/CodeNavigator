@@ -830,6 +830,13 @@ def validate_execution_artifact(
             encoded,
             strict=True,
         )
+        # Literal[0/1] can coerce JSON bool/float even in strict mode.
+        # Compare canonical raw and parsed payloads before trusting invariants;
+        # the existing canonicalizer preserves scalar types and array order.
+        if _canonical_json_sha256(json.loads(encoded)) != _canonical_json_sha256(
+            artifact.model_dump(mode="json")
+        ):
+            raise ValueError("artifact parsing changed JSON identity")
     except (ValidationError, ValueError):
         raise ContextReplayValidationError(
             "invalid_context_execution_artifact"

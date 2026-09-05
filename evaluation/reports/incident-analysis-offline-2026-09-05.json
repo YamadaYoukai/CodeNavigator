@@ -1,0 +1,114 @@
+{
+  "boundary": "Scripted structure and provenance only; no causal quality or confidence calibration.",
+  "calls": {
+    "agent_loop": 0,
+    "get_file_context": 0,
+    "model": 0,
+    "search_code": 0
+  },
+  "candidate": {
+    "case_id": "incident-click-unexpected-extra-argument-001",
+    "facts": [
+      {
+        "fact_id": "log-observation",
+        "kind": "incident",
+        "observation": {
+          "source_ids": [
+            "log-001"
+          ],
+          "value": "Error: Got unexpected extra argument"
+        }
+      },
+      {
+        "citation": {
+          "line": 1284,
+          "path": "src/click/core.py",
+          "repo": "click"
+        },
+        "fact_id": "code-observation",
+        "kind": "code",
+        "snippet": "\"Got unexpected extra argument ({args})\","
+      }
+    ],
+    "hypotheses": [
+      {
+        "confidence": "low",
+        "hypothesis_id": "extra-argument",
+        "statement": "The invocation may supply an unconsumed argument.",
+        "supporting_fact_ids": [
+          "log-observation",
+          "code-observation"
+        ]
+      }
+    ],
+    "investigation_steps": [
+      {
+        "action": "Compare the supplied arguments with the command declaration.",
+        "related_hypothesis_ids": [
+          "extra-argument"
+        ],
+        "step_id": "compare-arguments"
+      }
+    ],
+    "missing_information": [
+      {
+        "information_id": "invocation",
+        "question": "What exact invocation, command declaration and Click version produced the log?"
+      }
+    ]
+  },
+  "insufficient_evidence": {
+    "case_id": "incident-click-unexpected-extra-argument-001",
+    "facts": [
+      {
+        "fact_id": "log-observation",
+        "kind": "incident",
+        "observation": {
+          "source_ids": [
+            "log-001"
+          ],
+          "value": "Error: Got unexpected extra argument"
+        }
+      },
+      {
+        "citation": {
+          "line": 1284,
+          "path": "src/click/core.py",
+          "repo": "click"
+        },
+        "fact_id": "code-observation",
+        "kind": "code",
+        "snippet": "\"Got unexpected extra argument ({args})\","
+      }
+    ],
+    "hypotheses": [],
+    "investigation_steps": [
+      {
+        "action": "Compare the supplied arguments with the command declaration.",
+        "related_hypothesis_ids": [],
+        "step_id": "compare-arguments"
+      }
+    ],
+    "missing_information": [
+      {
+        "information_id": "invocation",
+        "question": "What exact invocation, command declaration and Click version produced the log?"
+      }
+    ]
+  },
+  "rejected_analysis_mutations": [
+    "facts.0.observation.source_ids",
+    "facts.1.citation.repo",
+    "facts.1.citation.path",
+    "facts.1.citation.line",
+    "facts.1.snippet",
+    "hypotheses.0.supporting_fact_ids",
+    "investigation_steps.0.related_hypothesis_ids",
+    "hypotheses.0.confidence"
+  ],
+  "rejected_context_scalar_mutations": [
+    "bool",
+    "float"
+  ],
+  "status": "passed"
+}

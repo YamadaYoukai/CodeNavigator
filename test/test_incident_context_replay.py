@@ -760,3 +760,16 @@ def test_cli_missing_repository_root_stops_before_real_execution(
         "status": "error",
         "error_type": "repository_root_missing",
     }
+
+
+@pytest.mark.parametrize('section,field,expected', [
+    ('calls', 'search_code', 0), ('calls', 'get_file_context', 1),
+    ('calls', 'model', 0), ('calls', 'agent_loop', 0),
+    ('budget', 'before', 1), ('budget', 'after', 0),
+])
+@pytest.mark.parametrize('scalar_type', [bool, float])
+def test_saved_artifact_rejects_literal_scalar_coercion(section, field, expected, scalar_type):
+    payload = _real_context_artifact_payload()
+    payload['replay'][section][field] = scalar_type(expected)
+    with pytest.raises(ContextReplayValidationError, match='invalid_context_execution_artifact'):
+        validate_execution_artifact(_encode_context_artifact(payload), load_context_replay())

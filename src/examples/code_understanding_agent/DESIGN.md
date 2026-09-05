@@ -681,3 +681,38 @@ raw context, local roots, credentials, and backend exception details are
 excluded. This proves a deterministic suffix across two dated artifacts. It
 does not prove a same-Trace two-Tool plan, MCP transport, model selection,
 root-cause quality, retry behavior, or a complete Incident workflow.
+
+## Offline Incident analysis contract (2026-09-05)
+
+An independent `incident_analysis` boundary accepts an untrusted Candidate and
+returns a detached frozen Result. It does not extend FinalAnswerDecision.
+All four ordered arrays are required: facts, hypotheses, missing_information,
+and investigation_steps. IDs are nonempty, whitespace-free and unique within
+each category; links are local to the explicitly pinned case_id.
+
+Facts contain only an exact Incident excerpt with source_ids, or the verified
+single-line code citation and fixed snippet. There is no free-text explanation
+field in a fact. Incident excerpts reuse the extraction provenance validator;
+code citations reuse FinalAnswerCitation and must equal the validated fixture's
+repo/path/line/snippet. The entry point reloads the fixture and search artifact
+through load_context_replay and validates context bytes through the public
+validate_execution_artifact; a successful context is required. No new artifact
+hash validator or relaxed dictionary comparison is introduced.
+
+Hypotheses require a statement, at least one unique existing fact ID, and
+low/medium/high confidence. Links establish provenance, not causal entailment;
+confidence is neither calibrated nor assessed by this validator. Empty
+hypotheses are valid only with at least one missing-information question.
+Questions and ordered investigation actions must be nonblank. Step hypothesis
+links are optional (an explicitly empty array), unique and must exist. Steps
+are plans, never executed here. Their wording, usefulness and operational
+safety are not semantically certified. No step-result field is accepted.
+
+Strict required fields reject extras, coercion, scalar type drift, old flat
+answers and dangling references. Python inputs are strictly re-parsed before
+use, even if constructed as models; JSON has strict scalar parsing and ordered
+arrays. All boundary inputs and outputs are detached. The frozen model and
+tuple tree prohibit ordinary mutation; exported payloads are fresh copies.
+The current Click case alone is supported. No model, Tool, loop, transport or
+network execution occurs. This contract does not measure extraction quality,
+root-cause accuracy or production diagnostic ability.
