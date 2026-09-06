@@ -59,6 +59,14 @@ from .incident_context import (
     IncidentRetrievalTask,
     map_incident_to_retrieval_context,
 )
+from .incident_analyzer import (
+    FakeIncidentAnalyzer,
+    IncidentAnalyzer,
+    IncidentAnalyzerInput,
+    IncidentCodeLocation,
+    analyze_incident,
+    load_incident_analysis_input,
+)
 from .model_boundary import (
     FakeModel,
     FinalAnswerCitation,
@@ -105,6 +113,12 @@ from .tool_router import (
 )
 
 __all__ = [
+    "FakeIncidentAnalyzer",
+    "IncidentAnalyzer",
+    "IncidentAnalyzerInput",
+    "IncidentCodeLocation",
+    "analyze_incident",
+    "load_incident_analysis_input",
     "AgentLoop",
     "AgentLoopOutcome",
     "CHECKPOINT_SCHEMA_VERSION",

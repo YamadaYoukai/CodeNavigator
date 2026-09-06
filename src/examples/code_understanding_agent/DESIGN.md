@@ -716,3 +716,46 @@ tuple tree prohibit ordinary mutation; exported payloads are fresh copies.
 The current Click case alone is supported. No model, Tool, loop, transport or
 network execution occurs. This contract does not measure extraction quality,
 root-cause accuracy or production diagnostic ability.
+
+## Provider-independent Incident analyzer (2026-09-06)
+
+```text
+frozen fixture + search artifact + context artifact
+  -> load_context_replay + validate_execution_artifact (successful context)
+  -> load_incident_analysis_input (whitelisted, detached input)
+  -> analyze_incident -> IncidentAnalyzer.analyze (one detached copy, once)
+  -> untrusted IncidentAnalysisCandidate (including Result instances)
+  -> existing validate_incident_analysis (reload sources, always revalidate)
+  -> detached IncidentAnalysisResult
+```
+
+`IncidentAnalyzerInput` contains only the case ID, caller-redacted Incident
+sources, and verified code locations/snippets. The current artifacts save
+context hashes, not the full context text. Therefore the input exposes only
+the frozen single-line snippet whose identity the existing source chain has
+verified. Coordinates come from the verified context match; the corresponding
+snippet comes from the validated fixture. No gold/rank, expected hypothesis,
+confidence, evaluation score, Tool budget or artifact object reaches the
+analyzer. This remains a fixture-specific example, not a general context loader.
+
+`IncidentAnalyzer` is a synchronous Protocol returning a Candidate. The
+orchestrator prepares input before invoking it, passes a deep copy and checks
+the return type. A Result label is never trusted: all Candidate subclasses
+still go through the existing output validator with the original source paths.
+The validator owns source authority and reloads it independently; analyzer
+mutation of its input cannot change those sources. Exceptions and wrong types
+fail explicitly, with no retry or conversion to a successful empty answer.
+
+`FakeIncidentAnalyzer` owns a deep copy of its ordered candidate script. Every
+well-typed analyze attempt records an independent input snapshot and increments
+`call_count`, including an exhausted attempt. Exhaustion raises RuntimeError;
+it never repeats the final candidate. Constructor arguments, returned
+candidates, recorded inputs and the public `analysis_inputs` copies do not
+share mutable model trees. `remaining_candidates` counts unconsumed entries.
+The Fake does not certify candidate provenance; that remains the output gate.
+
+No provider SDK, Tool Router, Agent Loop or network is invoked by this path.
+Fake attempts are reported separately from real model/Tool/Loop counts. Input
+and result copying is an object-isolation boundary, not a sandbox for arbitrary
+Python adapters. Offline probes block execution entry points and network access
+and assess structure/provenance only, not causal quality or calibrated confidence.

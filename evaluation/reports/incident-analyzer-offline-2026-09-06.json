@@ -1,0 +1,161 @@
+{
+  "boundary": "One scripted Click case; structure, provenance and isolation only. No causal quality assessment.",
+  "calls": {
+    "agent_loop": 0,
+    "get_file_context": 0,
+    "model": 0,
+    "network": 0,
+    "search_code": 0,
+    "subprocess": 0,
+    "tool_router": 0
+  },
+  "checks": {
+    "constructor_isolation": true,
+    "deterministic_json": true,
+    "input_snapshot_isolation": true,
+    "ordered_script": true,
+    "returned_candidate_isolation": true,
+    "single_attempt_no_retry": true,
+    "snapshot_export_isolation": true,
+    "trusted_result_isolation": true
+  },
+  "custom_adapter_calls": {
+    "capture": 1,
+    "exception": 1,
+    "pollution": 1,
+    "wrong_type": 1
+  },
+  "fake_calls": 16,
+  "input": {
+    "case_id": "incident-click-unexpected-extra-argument-001",
+    "code_locations": [
+      {
+        "citation": {
+          "line": 1284,
+          "path": "src/click/core.py",
+          "repo": "click"
+        },
+        "snippet": "\"Got unexpected extra argument ({args})\","
+      }
+    ],
+    "incident_input": {
+      "sources": [
+        {
+          "source_id": "log-001",
+          "source_type": "log",
+          "text": "Error: Got unexpected extra argument"
+        }
+      ]
+    }
+  },
+  "insufficient_evidence": {
+    "case_id": "incident-click-unexpected-extra-argument-001",
+    "facts": [
+      {
+        "fact_id": "log-observation",
+        "kind": "incident",
+        "observation": {
+          "source_ids": [
+            "log-001"
+          ],
+          "value": "Error: Got unexpected extra argument"
+        }
+      },
+      {
+        "citation": {
+          "line": 1284,
+          "path": "src/click/core.py",
+          "repo": "click"
+        },
+        "fact_id": "code-observation",
+        "kind": "code",
+        "snippet": "\"Got unexpected extra argument ({args})\","
+      }
+    ],
+    "hypotheses": [],
+    "investigation_steps": [
+      {
+        "action": "Compare the supplied arguments with the command declaration.",
+        "related_hypothesis_ids": [],
+        "step_id": "compare-arguments"
+      }
+    ],
+    "missing_information": [
+      {
+        "information_id": "invocation",
+        "question": "What exact invocation, command declaration and Click version produced the log?"
+      }
+    ]
+  },
+  "normal": {
+    "case_id": "incident-click-unexpected-extra-argument-001",
+    "facts": [
+      {
+        "fact_id": "log-observation",
+        "kind": "incident",
+        "observation": {
+          "source_ids": [
+            "log-001"
+          ],
+          "value": "Error: Got unexpected extra argument"
+        }
+      },
+      {
+        "citation": {
+          "line": 1284,
+          "path": "src/click/core.py",
+          "repo": "click"
+        },
+        "fact_id": "code-observation",
+        "kind": "code",
+        "snippet": "\"Got unexpected extra argument ({args})\","
+      }
+    ],
+    "hypotheses": [
+      {
+        "confidence": "low",
+        "hypothesis_id": "extra-argument",
+        "statement": "The invocation may supply an unconsumed argument.",
+        "supporting_fact_ids": [
+          "log-observation",
+          "code-observation"
+        ]
+      }
+    ],
+    "investigation_steps": [
+      {
+        "action": "Compare the supplied arguments with the command declaration.",
+        "related_hypothesis_ids": [
+          "extra-argument"
+        ],
+        "step_id": "compare-arguments"
+      }
+    ],
+    "missing_information": [
+      {
+        "information_id": "invocation",
+        "question": "What exact invocation, command declaration and Click version produced the log?"
+      }
+    ]
+  },
+  "rejected_after_call": [
+    "wrong_case",
+    "unknown_source",
+    "wrong_repo",
+    "wrong_path",
+    "wrong_line",
+    "wrong_snippet",
+    "forged_result",
+    "tampered_result_structure",
+    "wrong_return_type",
+    "analyzer_exception",
+    "input_pollution",
+    "script_exhaustion"
+  ],
+  "rejected_before_call": [
+    "fixture",
+    "search",
+    "context"
+  ],
+  "status": "passed"
+}

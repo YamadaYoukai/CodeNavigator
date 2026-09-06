@@ -226,6 +226,29 @@ Copilot。
 [09-05 follow-up](evaluation/reports/incident-context-replay-integrity-2026-09-05.md)；修复没有
 重跑真实 Tool，也没有修改原 JSON。
 
+### 离线 Incident analyzer
+
+供应商无关的 `IncidentAnalyzer` Protocol/Fake 在同一固定 Click 单例上产生非可信
+Candidate，`analyze_incident()` 在来源校验后只调用一次 analyzer，并无条件复用
+`validate_incident_analysis()` 生成可信 Result。输入只含 case ID、已脱敏来源和经
+现有来源链验证的单行代码；Fake 脚本、输入快照和返回值彼此隔离。
+
+从项目根目录运行独立演示与反例检查，无需凭证或服务：
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=. .venv/bin/python \
+  -m evaluation.validate_incident_analyzer
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=. .venv/bin/python -m pytest -q -p no:cacheprovider \
+  test/test_incident_analyzer.py test/test_incident_analysis.py
+```
+
+Runner 从公开入口验证正常/证据不足分支、非法来源、错误类型、伪造 Result、输入
+污染、脚本耗尽及快照隔离，并阻断真实模型、Tool、Loop、网络和子进程执行。
+输出中 `fake_calls` 单独计数，包含脚本耗尽的尝试；`calls` 不含历史 artifact 中的
+Tool 调用。结果及验收范围见 [09-06 报告](evaluation/reports/incident-analyzer-offline-2026-09-06.md)
+和 [固定 JSON](evaluation/reports/incident-analyzer-offline-2026-09-06.json)。本次只证明
+候选生成与可信结构/来源之间的边界，不证明根因质量或置信度校准。
+
 ### 冻结的 Agent Eval
 
 独立 Agent 评测集位于
